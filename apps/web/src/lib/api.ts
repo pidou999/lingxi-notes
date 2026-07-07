@@ -119,3 +119,18 @@ export function apiUpdateProvider(id: string, data: Partial<ProviderData>) {
 export function apiDeleteProvider(id: string) {
   return request<{ status: string }>("DELETE", `/api/v1/providers/${id}`);
 }
+
+// ─── Tags ────────────────────────────────────────
+
+export interface TagData {
+  name: string;
+  count: number;
+}
+
+export function apiListTags() {
+  return request<TagData[]>("GET", "/api/v1/tags");
+}
+
+export function apiListNotesByTag(tag: string) {
+  return request<NoteData[]>("GET", `/api/v1/tags/${encodeURIComponent(tag)}`);
+}

@@ -46,6 +46,9 @@ func main() {
 		r.Post("/api/v1/providers", createProviderHandler(db))
 		r.Put("/api/v1/providers/{id}", updateProviderHandler(db))
 		r.Delete("/api/v1/providers/{id}", deleteProviderHandler(db))
+
+		r.Get("/api/v1/tags", listTagsHandler(db))
+		r.Get("/api/v1/tags/{tag}", listNotesByTagHandler(db))
 	})
 
 	addr := ":8888"
