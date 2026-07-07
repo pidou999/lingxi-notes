@@ -39,17 +39,10 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
 
     if (!open) return null;
 
-    const handleOverlayClick = (e: React.MouseEvent) => {
-      if (e.target === overlayRef.current) {
-        onClose();
-      }
-    };
-
     return (
       <div
         ref={overlayRef}
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-        onClick={handleOverlayClick}
         role="dialog"
         aria-modal="true"
         aria-label={title}
