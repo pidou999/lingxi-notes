@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@ai-notes/ui-kit";
-import { ArrowLeft, Trash2 } from "@ai-notes/icons";
+import { ArrowLeft, Trash2, Ai } from "@ai-notes/icons";
 import { TipTapEditor } from "@/components/editor/TipTapEditor";
 import { TagInput } from "@/components/tags/TagInput";
+import { ChatPanel } from "@/components/chat/ChatPanel";
 import { getNote, updateNote, deleteNote } from "@/lib/storage";
 import type { Note } from "@/lib/types";
 
@@ -20,6 +21,7 @@ export default function NoteEditorPage({
   const [title, setTitle] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [notFound, setNotFound] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const loadNote = useCallback(() => {
     const found = getNote(id);
@@ -103,6 +105,16 @@ export default function NoteEditorPage({
         <Button
           variant="ghost"
           size="sm"
+          onClick={() => setChatOpen(true)}
+          className="text-gray-500 hover:text-brand-600 dark:text-gray-400 dark:hover:text-brand-400"
+          aria-label="AI 对话"
+        >
+          <Ai size={18} />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={handleDelete}
           className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
           aria-label="删除笔记"
@@ -133,6 +145,13 @@ export default function NoteEditorPage({
         placeholder="开始写作..."
         className="flex-1 flex flex-col"
         editorClassName="flex-1"
+      />
+
+      <ChatPanel
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        noteTitle={title}
+        noteHtml={note.html}
       />
     </div>
   );
