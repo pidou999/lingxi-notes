@@ -5,6 +5,7 @@ import { type Editor } from "@tiptap/react";
 import { cn } from "@ai-notes/ui-kit";
 import { LinkDialog } from "./LinkDialog";
 import { ImageDialog } from "./ImageDialog";
+import { AIEditorTool } from "./AIEditorTool";
 
 interface EditorToolbarProps {
   editor: Editor | null;
@@ -212,6 +213,9 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
           ))}
         </div>
       ))}
+
+      <Divider />
+      <AIEditorTool editor={editor} />
 
       {/* Dialogs (rendered outside the toolbar flow) */}
       <LinkDialog
