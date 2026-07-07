@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Plus, Settings, Server, Cpu, CheckCircle, XCircle, ChevronDown, Eye, EyeOff, Loader2, RefreshCw } from "@ai-notes/icons";
+import { Plus, Settings, Trash2, Server, Cpu, CheckCircle, XCircle, ChevronDown, Eye, EyeOff, Loader2, RefreshCw } from "@ai-notes/icons";
 import { Button, Modal } from "@ai-notes/ui-kit";
 import {
   type ProviderConfig,
@@ -19,9 +19,11 @@ import {
 function ProviderCard({
   provider,
   onEdit,
+  onDelete,
 }: {
   provider: ProviderConfig;
   onEdit: () => void;
+  onDelete: () => void;
 }) {
   const preset = getPresetProvider(provider.type);
   const displayName =
@@ -58,6 +60,18 @@ function ProviderCard({
             title="编辑"
           >
             <Settings size={16} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (confirm(`确定删除服务商"${displayName}"吗？`)) {
+                onDelete();
+              }
+            }}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+            title="删除"
+          >
+            <Trash2 size={16} />
           </button>
         </div>
       </div>
@@ -536,6 +550,12 @@ export default function ProvidersPage() {
     setDialogOpen(true);
   };
 
+  const handleDelete = (id: string) => {
+    const updated = providers.filter((x) => x.id !== id);
+    setProviders(updated);
+    saveProviders(updated);
+  };
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       {/* Header */}
@@ -579,6 +599,7 @@ export default function ProvidersPage() {
               key={p.id}
               provider={p}
               onEdit={() => handleEdit(p)}
+              onDelete={() => handleDelete(p.id)}
             />
           ))}
         </div>
