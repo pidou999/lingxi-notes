@@ -1,3 +1,5 @@
+export type ProtocolType = "OpenAI" | "Anthropic" | "Gemini";
+
 export interface ProviderConfig {
   id: string;
   /** 预设服务商 id (如 'openai', 'custom' 表示自定义) */
@@ -8,6 +10,8 @@ export interface ProviderConfig {
   baseUrl: string;
   /** API Key */
   apiKey: string;
+  /** API 协议类型 */
+  protocol: ProtocolType;
   /** 已添加的模型列表 */
   models: string[];
 }
@@ -16,18 +20,19 @@ export interface PresetProvider {
   id: string;
   name: string;
   baseUrl: string;
+  protocol: ProtocolType;
 }
 
 export const PRESET_PROVIDERS: PresetProvider[] = [
-  { id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1" },
-  { id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com" },
-  { id: "deepseek", name: "DeepSeek", baseUrl: "https://api.deepseek.com/v1" },
-  { id: "moonshot", name: "Moonshot", baseUrl: "https://api.moonshot.cn/v1" },
-  { id: "qwen", name: "通义千问", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1" },
-  { id: "zhipu", name: "智谱AI", baseUrl: "https://open.bigmodel.cn/api/paas/v4" },
-  { id: "siliconflow", name: "SiliconFlow", baseUrl: "https://api.siliconflow.cn/v1" },
-  { id: "baidu", name: "文心一言", baseUrl: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop" },
-  { id: "custom", name: "自定义", baseUrl: "" },
+  { id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", protocol: "OpenAI" },
+  { id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com", protocol: "Anthropic" },
+  { id: "deepseek", name: "DeepSeek", baseUrl: "https://api.deepseek.com/v1", protocol: "OpenAI" },
+  { id: "moonshot", name: "Moonshot", baseUrl: "https://api.moonshot.cn/v1", protocol: "OpenAI" },
+  { id: "qwen", name: "通义千问", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", protocol: "OpenAI" },
+  { id: "zhipu", name: "智谱AI", baseUrl: "https://open.bigmodel.cn/api/paas/v4", protocol: "OpenAI" },
+  { id: "siliconflow", name: "SiliconFlow", baseUrl: "https://api.siliconflow.cn/v1", protocol: "OpenAI" },
+  { id: "baidu", name: "文心一言", baseUrl: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop", protocol: "OpenAI" },
+  { id: "custom", name: "自定义", baseUrl: "", protocol: "OpenAI" },
 ];
 
 const STORAGE_KEY = "ai-notes:providers";
@@ -52,48 +57,40 @@ export function getPresetProvider(id: string): PresetProvider | undefined {
 }
 
 /**
- * 通过 API 获取模型列表（兼容 OpenAI API 格式）
+ * 通过后端代理获取模型列表（绕过 CORS）
  */
 export async function fetchModels(
   baseUrl: string,
-  apiKey: string
+  apiKey: string,
+  protocol: ProtocolType = "OpenAI"
 ): Promise<string[]> {
-  const url = baseUrl.replace(/\/+$/, "") + "/models";
-  const resp = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+  const resp = await fetch("/api/proxy/fetch-models", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ baseUrl, apiKey, protocol }),
   });
-  if (!resp.ok) throw new Error(`API 请求失败: ${resp.status}`);
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}));
+    throw new Error(data.error || `请求失败: ${resp.status}`);
+  }
   const data = await resp.json();
-  const models: string[] = (data.data || [])
-    .filter((m: any) => m.id && m.object === "model" || m.id)
-    .map((m: any) => m.id);
-  return models.sort();
+  return data.models || [];
 }
 
 /**
- * 测试连接（发送一个简单的 chat completion 请求）
+ * 通过后端代理测试连接（绕过 CORS）
  */
 export async function testConnection(
   baseUrl: string,
   apiKey: string,
-  model: string
+  model: string,
+  protocol: ProtocolType = "OpenAI"
 ): Promise<boolean> {
   try {
-    const url = baseUrl.replace(/\/+$/, "") + "/chat/completions";
-    const resp = await fetch(url, {
+    const resp = await fetch("/api/proxy/test-connection", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: "Hi" }],
-        max_tokens: 1,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ baseUrl, apiKey, model, protocol }),
     });
     return resp.ok;
   } catch {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Plus, Settings, Server, Cpu, CheckCircle, XCircle, ChevronDown, Eye, EyeOff, Loader2, RefreshCw } from "@ai-notes/icons";
 import { Button, Modal } from "@ai-notes/ui-kit";
 import {
@@ -233,12 +233,18 @@ function AddProviderDialog({
     }
   };
 
+  // 根据 selectedPreset 计算当前协议
+  const currentProtocol = useMemo(() => {
+    const preset = getPresetProvider(selectedPreset);
+    return preset?.protocol || "OpenAI";
+  }, [selectedPreset]);
+
   // 自动获取模型
   const handleFetchModels = async () => {
     if (!baseUrl || !apiKey) return;
     setFetching(true);
     try {
-      const list = await fetchModels(baseUrl, apiKey);
+      const list = await fetchModels(baseUrl, apiKey, currentProtocol);
       setFetchedModels(list);
       setShowModelDropdown(true);
     } catch (err: any) {
@@ -267,7 +273,7 @@ function AddProviderDialog({
     if (!baseUrl || !apiKey || models.length === 0) return;
     setTesting(true);
     setTestResult(null);
-    const ok = await testConnection(baseUrl, apiKey, models[0]);
+    const ok = await testConnection(baseUrl, apiKey, models[0], currentProtocol);
     setTestResult(ok);
     setTesting(false);
   };
@@ -299,6 +305,7 @@ function AddProviderDialog({
         : getPresetProvider(selectedPreset)?.name || name.trim(),
       baseUrl: baseUrl.trim(),
       apiKey: apiKey.trim(),
+      protocol: currentProtocol,
       models,
     };
     onSave(provider);
