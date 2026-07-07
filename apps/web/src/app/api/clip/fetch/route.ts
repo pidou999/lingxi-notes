@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
+import { scrapeToutiao } from "@/lib/browser-scrape";
 
 // ====== 配置 ======
 
@@ -422,6 +423,73 @@ async function fetchGeneric(url: string): Promise<{
   return { title, contentMd };
 }
 
+// ====== 头条文章抓取（需要浏览器渲染） ======
+
+async function fetchToutiao(url: string): Promise<{
+  title: string;
+  contentMd: string;
+} | null> {
+  const result = await scrapeToutiao(url);
+  if (!result || !result.contentHtml) return null;
+
+  // 下载图片
+  const urlMap = await downloadAllImages(result.images, url);
+
+  // 用 cheerio 处理 HTML，替换图片地址
+  const cheerio = await import("cheerio");
+  const $ = cheerio.load(result.contentHtml);
+
+  $("img").each((_: number, el: any) => {
+    const $el = $(el);
+    const src = $el.attr("src") || "";
+    const local = urlMap.get(src);
+    if (local) $el.attr("src", local);
+  });
+
+  $("script, style, svg, iframe").remove();
+
+  // HTML → Markdown
+  const Turndown = (await import("turndown")).default;
+  const td = new Turndown({
+    headingStyle: "atx",
+    linkStyle: "inlined",
+    codeBlockStyle: "fenced",
+  });
+
+  td.addRule("images", {
+    filter: "img",
+    replacement: (_content: string, node: any) => {
+      const src = node.getAttribute("src") || "";
+      const alt = node.getAttribute("alt") || "图片";
+      if (!src || src.startsWith("data:")) return "";
+      return `![${alt}](${src})`;
+    },
+  });
+
+  td.addRule("links", {
+    filter: "a",
+    replacement: (content: string, node: any) => {
+      const href = node.getAttribute("href") || "";
+      if (!href || href.startsWith("javascript:") || href === "#") return content;
+      return `[${content}](${href})`;
+    },
+  });
+
+  const contentHtml = $.html() || "";
+  let contentMd = td.turndown(contentHtml);
+  contentMd = contentMd.replace(/\n{4,}/g, "\n\n\n").trim();
+
+  // 添加来源信息
+  const metaParts: string[] = [];
+  if (result.source) metaParts.push(`**来源**：${result.source}`);
+  if (result.publishTime) metaParts.push(`**时间**：${result.publishTime}`);
+  metaParts.push(`**原文**：[${url}](${url})`);
+
+  contentMd = `${metaParts.join("\n")}\n\n---\n\n${contentMd}`;
+
+  return { title: result.title, contentMd };
+}
+
 // ====== 主入口 ======
 
 export async function POST(request: NextRequest) {
@@ -473,6 +541,22 @@ export async function POST(request: NextRequest) {
           {
             success: false,
             error: "无法抓取该知乎文章，Cookie 可能已过期，请更新后重试",
+          },
+          { status: 400 }
+        );
+      }
+    }
+    // ===== 头条 =====
+    else if (
+      url.includes("toutiao.com") ||
+      url.includes("toutiaohao.com")
+    ) {
+      result = await fetchToutiao(url);
+      if (!result) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "无法抓取该头条文章，可能已失效或需要登录",
           },
           { status: 400 }
         );

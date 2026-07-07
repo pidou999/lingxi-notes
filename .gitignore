@@ -56,3 +56,6 @@ apps/desktop/src-tauri/target/
 *.pid
 *.seed
 *.pid.lock
+
+# Generated
+public/uploads/
