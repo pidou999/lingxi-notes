@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useCallback, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { SidebarNav } from "./SidebarNav";
 import { TopBar } from "./TopBar";
 import { useRequireAuth } from "@/lib/auth";
 import { Note, Bookmark, Ai, Settings } from "@ai-notes/icons";
+import type { SidebarItem } from "@ai-notes/ui-kit";
 
 export interface DashboardLayoutProps {
   children: ReactNode;
@@ -12,7 +14,17 @@ export interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isLoading } = useRequireAuth();
+  const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const handleNavClick = useCallback(
+    (item: SidebarItem) => {
+      if (item.href) {
+        router.push(item.href);
+      }
+    },
+    [router]
+  );
 
   if (isLoading) {
     return (
@@ -33,6 +45,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <SidebarNav
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onItemClick={handleNavClick}
         />
       </aside>
 

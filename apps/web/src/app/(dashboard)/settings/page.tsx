@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button, Input, Switch } from "@ai-notes/ui-kit";
-import { Trash2, Plus } from "@ai-notes/icons";
+import { Trash2, Plus, Settings as SettingsIcon, Link, ExternalLink } from "@ai-notes/icons";
 import {
   getSiteCookies,
   saveSiteCookies,
@@ -52,90 +52,120 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
         设置
       </h1>
 
       {/* ── 通用 ── */}
-      <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          通用
-        </h2>
-        <div className="space-y-4">
-          <Switch label="自动保存笔记" defaultChecked />
-          <Switch label="启用 AI 建议" defaultChecked />
-          <Switch label="Markdown 快捷键" defaultChecked />
+      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+        <div className="border-b border-gray-100 px-6 py-4 dark:border-gray-800">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <SettingsIcon size={20} className="text-gray-400" />
+            通用
+          </h2>
+        </div>
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          <SwitchRow
+            label="自动保存笔记"
+            description="编辑时自动保存内容，防止丢失"
+            defaultChecked
+          />
+          <SwitchRow
+            label="启用 AI 建议"
+            description="在编辑器中显示 AI 辅助建议"
+            defaultChecked
+          />
+          <SwitchRow
+            label="Markdown 快捷键"
+            description="启用快捷键快速插入 Markdown 语法"
+            defaultChecked
+          />
         </div>
       </div>
 
       {/* ── 抓取配置 ── */}
-      <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          抓取配置
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          配置各网站的 Cookie，抓取需要登录才能访问的内容时会自动带上。
-          在浏览器开发者工具中登录目标网站后，复制 Cookie 字符串粘贴到下方。
-        </p>
+      <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+        <div className="border-b border-gray-100 px-6 py-4 dark:border-gray-800">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <Link size={20} className="text-gray-400" />
+            抓取配置
+          </h2>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            配置各网站的 Cookie，抓取需要登录才能访问的内容时会自动带上。
+            在浏览器开发者工具中登录目标网站后，复制 Cookie 字符串粘贴到下方。
+          </p>
+        </div>
 
         {/* Cookie 列表 */}
-        {cookies.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-gray-500">
-            暂无配置，添加一个吧
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {cookies.map((c) => (
-              <div
-                key={c.id}
-                className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/50 p-3 dark:border-gray-700 dark:bg-gray-800/30"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {c.domain}
-                  </p>
-                  <p className="truncate text-xs text-gray-400 dark:text-gray-500">
-                    {c.cookie.substring(0, 50)}
-                    {c.cookie.length > 50 ? "..." : ""}
-                  </p>
-                </div>
-                <Switch
-                  checked={c.enabled}
-                  onChange={() => handleToggle(c.id)}
-                />
-                <button
-                  onClick={() => handleRemove(c.id)}
-                  className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
-                  aria-label="删除"
+        <div className="px-6 py-4">
+          {cookies.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-6 text-center">
+              <ExternalLink size={32} className="text-gray-300 dark:text-gray-600" />
+              <p className="text-sm text-gray-400 dark:text-gray-500">
+                暂无 Cookie 配置
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                添加一个配置即可抓取知乎等需要登录的网站
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {cookies.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/30"
                 >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="inline-flex items-center rounded-md bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">
+                      {c.domain}
+                    </span>
+                    <code className="truncate text-xs text-gray-400 dark:text-gray-500">
+                      {c.cookie.substring(0, 60)}
+                      {c.cookie.length > 60 ? "..." : ""}
+                    </code>
+                  </div>
+                  <Switch
+                    checked={c.enabled}
+                    onChange={() => handleToggle(c.id)}
+                  />
+                  <button
+                    onClick={() => handleRemove(c.id)}
+                    className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                    aria-label="删除"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-        {/* 新增配置 */}
-        <div className="border-t border-gray-100 pt-4 dark:border-gray-800">
+        {/* 新增配置 — 输入框同一行 */}
+        <div className="border-t border-gray-100 px-6 py-4 dark:border-gray-800">
           <h3 className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">
             新增配置
           </h3>
-          <div className="space-y-3">
-            <Input
-              placeholder="域名，如 zhihu.com"
-              value={newDomain}
-              onChange={(e) => setNewDomain(e.target.value)}
-            />
-            <Input
-              placeholder="Cookie 字符串（从浏览器复制）"
-              value={newCookie}
-              onChange={(e) => setNewCookie(e.target.value)}
-            />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="w-full sm:w-44">
+              <Input
+                placeholder="域名，如 zhihu.com"
+                value={newDomain}
+                onChange={(e) => setNewDomain(e.target.value)}
+              />
+            </div>
+            <div className="flex-1">
+              <Input
+                placeholder="Cookie 字符串（从浏览器复制）"
+                value={newCookie}
+                onChange={(e) => setNewCookie(e.target.value)}
+              />
+            </div>
             <Button
               onClick={handleAdd}
-              size="sm"
               disabled={!newDomain.trim() || !newCookie.trim()}
+              className="shrink-0"
             >
               <Plus size={16} />
               添加
@@ -143,6 +173,32 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── 开关行组件 ──
+
+function SwitchRow({
+  label,
+  description,
+  defaultChecked,
+}: {
+  label: string;
+  description: string;
+  defaultChecked?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between px-6 py-4">
+      <div className="flex-1">
+        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          {label}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {description}
+        </p>
+      </div>
+      <Switch defaultChecked={defaultChecked} />
     </div>
   );
 }
