@@ -443,10 +443,13 @@ export async function POST(request: NextRequest) {
     if (url.includes("mp.weixin.qq.com") || url.includes("weixin.qq.com")) {
       result = await fetchWechat(url);
       if (!result) {
-        return NextResponse.json({
-          success: false,
-          error: "无法抓取该微信文章，可能已失效或需要登录",
-        });
+        return NextResponse.json(
+          {
+            success: false,
+            error: "无法抓取该微信文章，可能已失效或需要登录",
+          },
+          { status: 400 }
+        );
       }
     }
     // ===== 知乎 =====
@@ -457,15 +460,22 @@ export async function POST(request: NextRequest) {
       result = await fetchZhihu(url, cookie);
       if (!result) {
         if (!cookie) {
-          return NextResponse.json({
-            success: false,
-            error: "抓取知乎需要配置 Cookie，请前往 设置 → 抓取配置 添加 zhihu.com 的 Cookie",
-          });
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "抓取知乎需要配置 Cookie，请前往 设置 → 抓取配置 添加 zhihu.com 的 Cookie",
+            },
+            { status: 400 }
+          );
         }
-        return NextResponse.json({
-          success: false,
-          error: "无法抓取该知乎文章，Cookie 可能已过期，请更新后重试",
-        });
+        return NextResponse.json(
+          {
+            success: false,
+            error: "无法抓取该知乎文章，Cookie 可能已过期，请更新后重试",
+          },
+          { status: 400 }
+        );
       }
     } else {
       // ===== 通用站点 =====
@@ -473,10 +483,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (!result) {
-      return NextResponse.json({
-        success: false,
-        error: "无法从该页面提取内容，暂不支持该网站",
-      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "无法从该页面提取内容，暂不支持该网站",
+        },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({

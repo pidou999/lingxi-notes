@@ -59,6 +59,11 @@ export function ClipDialog({
         return;
       }
 
+      if (!data.success) {
+        setError(data.error || "抓取失败");
+        return;
+      }
+
       setResult(data);
     } catch (err: any) {
       setError(err.message || "网络错误，请重试");

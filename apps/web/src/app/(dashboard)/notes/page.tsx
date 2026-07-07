@@ -29,6 +29,7 @@ export default function NotesPage() {
   };
 
   const handleClipSave = (result: { title: string; content: string; url: string }) => {
+    if (!result?.content) return;
     const note = createNote(result.title);
 
     // 用 marked 将 Markdown 转换为标准 HTML
