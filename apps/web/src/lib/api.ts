@@ -134,3 +134,9 @@ export function apiListTags() {
 export function apiListNotesByTag(tag: string) {
   return request<NoteData[]>("GET", `/api/v1/tags/${encodeURIComponent(tag)}`);
 }
+
+// ─── Search ──────────────────────────────────────
+
+export function apiSearch(q: string) {
+  return request<NoteData[]>("GET", `/api/v1/search?q=${encodeURIComponent(q)}`);
+}

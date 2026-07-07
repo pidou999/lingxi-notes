@@ -49,6 +49,8 @@ func main() {
 
 		r.Get("/api/v1/tags", listTagsHandler(db))
 		r.Get("/api/v1/tags/{tag}", listNotesByTagHandler(db))
+
+		r.Get("/api/v1/search", searchHandler(db))
 	})
 
 	addr := ":8888"
