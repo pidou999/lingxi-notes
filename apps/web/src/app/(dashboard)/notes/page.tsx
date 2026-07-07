@@ -8,6 +8,8 @@ import { getNotes, createNote, deleteNote, updateNote } from "@/lib/storage";
 import type { Note } from "@/lib/types";
 import { ClipDialog } from "@/components/clip/ClipDialog";
 import { SmartSearch } from "@/components/search/SmartSearch";
+import { ImportDialog } from "@/components/import/ImportDialog";
+import { ExportMenu } from "@/components/export/ExportMenu";
 import { marked } from "marked";
 
 export default function NotesPage() {
@@ -86,6 +88,8 @@ export default function NotesPage() {
           笔记
         </h1>
         <div className="flex items-center gap-2">
+          <ImportDialog />
+          <ExportMenu />
           <Button
             onClick={() => setClipOpen(true)}
             variant="ghost"
