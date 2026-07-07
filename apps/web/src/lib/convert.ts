@@ -7,6 +7,16 @@ const turndown = new TurndownService({
   emDelimiter: "*",
 });
 
+/** File System Access API 类型 */
+type SaveFilePickerOptions = {
+  suggestedName?: string;
+  types?: Array<{
+    description?: string;
+    accept: Record<string, string[]>;
+  }>;
+  excludeAcceptAllOption?: boolean;
+};
+
 /** 导入格式 */
 export type ImportFormat = "md" | "txt" | "html" | "docx" | "json";
 
@@ -296,6 +306,49 @@ export async function htmlToDocx(
 
   const blob = await Packer.toBlob(doc);
   return blob;
+}
+
+/**
+ * 下载文件：优先 File System Access API（弹原生另存为对话框），
+ * 不支持时自动降级到普通 <a> 下载。
+ */
+export async function downloadFile(blob: Blob, suggestedName: string): Promise<void> {
+  // 优先使用 File System Access API（Chromium 支持）
+  if ("showSaveFilePicker" in window) {
+    try {
+      const opts: SaveFilePickerOptions = {
+        suggestedName,
+        types: [
+          {
+            description: "文件",
+            accept: {
+              "application/octet-stream": [suggestedName.split(".").pop() || ""].map(
+                (ext) => "." + ext
+              ),
+            },
+          },
+        ],
+        excludeAcceptAllOption: false,
+      };
+      const handle = await (window as any).showSaveFilePicker(opts);
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch {
+      // 用户取消 或 API 错误 → 降级
+    }
+  }
+
+  // 降级方案：<a> 下载
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = suggestedName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 /** 获取导出文件名 */

@@ -2,35 +2,36 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@ai-notes/ui-kit";
-import { Export as ExportIcon, Close, CheckCircle } from "@ai-notes/icons";
-import { getNotes } from "@/lib/storage";
+import { Export as ExportIcon, CheckCircle, Close } from "@ai-notes/icons";
 import {
   htmlToMarkdown,
   htmlToPlainText,
-  notesToJson,
   htmlToDocx,
   getExportFilename,
   downloadFile,
   type ExportFormat,
-  type ExportPayload,
 } from "@/lib/convert";
 
-const FORMAT_OPTIONS: { value: ExportFormat; label: string; desc: string }[] = [
-  { value: "md", label: "Markdown", desc: "HTML → Markdown 转换" },
-  { value: "json", label: "JSON 备份", desc: "完整笔记数据，可重新导入" },
-  { value: "txt", label: "纯文本", desc: "仅保留文字内容" },
-  { value: "docx", label: "Word 文档", desc: "生成 .docx 文件" },
+interface Props {
+  title: string;
+  html: string;
+  tags?: string[];
+}
+
+const FORMAT_OPTIONS: { value: ExportFormat; label: string }[] = [
+  { value: "md", label: "Markdown" },
+  { value: "json", label: "JSON" },
+  { value: "txt", label: "纯文本" },
+  { value: "docx", label: "Word" },
 ];
 
-export function ExportMenu() {
+export function ExportSingleNote({ title, html, tags }: Props) {
   const [open, setOpen] = useState(false);
   const [format, setFormat] = useState<ExportFormat>("md");
   const [exporting, setExporting] = useState(false);
   const [done, setDone] = useState(false);
-  const [noteCount, setNoteCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // 点击外部关闭
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
@@ -43,83 +44,56 @@ export function ExportMenu() {
   }, [open]);
 
   const handleExport = async () => {
-    const allNotes = getNotes();
-    setNoteCount(allNotes.length);
-    if (allNotes.length === 0) {
-      alert("没有可导出的笔记");
+    if (!html) {
+      alert("笔记内容为空，无法导出");
       return;
     }
 
     setExporting(true);
 
-    const payloads: ExportPayload[] = allNotes.map((n) => ({
-      title: n.title || "未命名笔记",
-      html: n.html || "",
-      tags: n.tags,
-      createdAt: n.createdAt,
-      updatedAt: n.updatedAt,
-    }));
-
     try {
       let blob: Blob;
-      let filename: string;
+      const noteTitle = title || "未命名笔记";
 
       switch (format) {
         case "md": {
-          const md = payloads
-            .map((p) => {
-              const title = `# ${p.title}\n\n`;
-              const body = htmlToMarkdown(p.html);
-              const tags =
-                p.tags && p.tags.length > 0
-                  ? "\n\n标签: " + p.tags.join(", ")
-                  : "";
-              return title + body + tags;
-            })
-            .join("\n\n---\n\n");
+          const md = `# ${noteTitle}\n\n${htmlToMarkdown(html)}` +
+            (tags && tags.length > 0 ? `\n\n标签: ${tags.join(", ")}` : "");
           blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-          filename = getExportFilename(new Date().toISOString().slice(0, 10), "md");
           break;
         }
         case "txt": {
-          const txt = payloads
-            .map((p) => {
-              const title = p.title + "\n" + "=".repeat(p.title.length) + "\n\n";
-              const body = htmlToPlainText(p.html);
-              return title + body;
-            })
-            .join("\n\n==========\n\n");
+          const txt = `${noteTitle}\n${"=".repeat(noteTitle.length)}\n\n${htmlToPlainText(html)}`;
           blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
-          filename = getExportFilename(new Date().toISOString().slice(0, 10), "txt");
           break;
         }
         case "json": {
-          const json = notesToJson(payloads);
+          const json = JSON.stringify(
+            {
+              title: noteTitle,
+              html,
+              tags,
+              exportedAt: new Date().toISOString(),
+            },
+            null,
+            2
+          );
           blob = new Blob([json], { type: "application/json;charset=utf-8" });
-          filename = getExportFilename(new Date().toISOString().slice(0, 10), "json");
           break;
         }
         case "docx": {
-          // docx: 全部导出为一个文档
-          const combinedHtml = payloads
-            .map((p) => {
-              const titleHtml = `<h1>${p.title}</h1>`;
-              const tagsHtml =
-                p.tags && p.tags.length > 0
-                  ? `<p><strong>标签:</strong> ${p.tags.join(", ")}</p>`
-                  : "";
-              return titleHtml + tagsHtml + p.html + "<hr/>";
-            })
-            .join("\n");
-          blob = await htmlToDocx(combinedHtml, "灵犀笔记导出");
-          filename = getExportFilename(new Date().toISOString().slice(0, 10), "docx");
+          const tagsHtml =
+            tags && tags.length > 0
+              ? `<p><strong>标签:</strong> ${tags.join(", ")}</p>`
+              : "";
+          blob = await htmlToDocx(`<h1>${noteTitle}</h1>${tagsHtml}${html}`, noteTitle);
           break;
         }
         default:
           return;
       }
 
-      // 下载
+      const filename = getExportFilename(noteTitle, format);
       await downloadFile(blob, filename);
 
       setExporting(false);
@@ -136,19 +110,22 @@ export function ExportMenu() {
 
   return (
     <div className="relative" ref={menuRef}>
-      <Button variant="outline" size="sm" onClick={() => setOpen(!open)}>
-        <ExportIcon size={16} className="mr-1" />
-        导出
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setOpen(!open)}
+        className="text-gray-500 hover:text-brand-600 dark:text-gray-400 dark:hover:text-brand-400"
+        aria-label="导出笔记"
+      >
+        <ExportIcon size={18} />
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-full z-40 mt-2 w-72 rounded-xl border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-900">
+        <div className="absolute right-0 top-full z-40 mt-2 w-56 rounded-xl border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-900">
           {done ? (
-            <div className="flex flex-col items-center gap-3 py-6">
-              <CheckCircle size={36} className="text-green-500" />
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                已导出 {noteCount} 篇笔记
-              </p>
+            <div className="flex flex-col items-center gap-3 py-4">
+              <CheckCircle size={32} className="text-green-500" />
+              <p className="text-sm text-gray-700 dark:text-gray-300">已导出</p>
             </div>
           ) : (
             <>
@@ -177,12 +154,7 @@ export function ExportMenu() {
                         <span className="h-1.5 w-1.5 rounded-full bg-white" />
                       )}
                     </span>
-                    <span>
-                      <span className="font-medium">{opt.label}</span>
-                      <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">
-                        {opt.desc}
-                      </span>
-                    </span>
+                    <span className="font-medium">{opt.label}</span>
                   </button>
                 ))}
               </div>
@@ -191,7 +163,7 @@ export function ExportMenu() {
                   取消
                 </Button>
                 <Button size="sm" loading={exporting} onClick={handleExport}>
-                  导出全部
+                  导出
                 </Button>
               </div>
             </>

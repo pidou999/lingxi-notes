@@ -7,6 +7,7 @@ import { ArrowLeft, Trash2, Ai } from "@ai-notes/icons";
 import { TipTapEditor, type TipTapEditorHandle } from "@/components/editor/TipTapEditor";
 import { TagInput } from "@/components/tags/TagInput";
 import { ChatPanel } from "@/components/chat/ChatPanel";
+import { ExportSingleNote } from "@/components/export/ExportSingleNote";
 import { getNote, updateNote, deleteNote } from "@/lib/storage";
 import type { Note } from "@/lib/types";
 
@@ -129,6 +130,8 @@ export default function NoteEditorPage() {
         >
           <Ai size={18} />
         </Button>
+
+        <ExportSingleNote title={title} html={note.html} tags={tags} />
 
         <Button
           variant="ghost"
