@@ -45,6 +45,7 @@ func listNotesHandler(db *DB) http.HandlerFunc {
 func createNoteHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
+			ID    string `json:"id"`
 			Title string `json:"title"`
 			HTML  string `json:"html"`
 			JSON  string `json:"json"`
@@ -61,7 +62,10 @@ func createNoteHandler(db *DB) http.HandlerFunc {
 			body.Tags = "[]"
 		}
 
-		id := newID()
+		id := body.ID
+		if id == "" {
+			id = newID()
+		}
 		now := now()
 		_, err := db.Exec(
 			"INSERT INTO notes (id, user_id, title, html, json, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",

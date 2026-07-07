@@ -1,4 +1,10 @@
 import type { Note, User } from "./types";
+import {
+  isLoggedIn,
+  apiCreateNote,
+  apiUpdateNote,
+  apiDeleteNote,
+} from "./api";
 
 const STORAGE_PREFIX = "ai-notes:";
 
@@ -15,6 +21,37 @@ function get<T>(key: string, fallback: T): T {
 function set<T>(key: string, value: T): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+}
+
+// ─── API 同步辅助 ────────────────────────────
+// 登录时自动将本地操作同步到后端，静默失败（离线/后端未启动都不影响）
+
+function syncCreateToApi(note: Note): void {
+  if (!isLoggedIn()) return;
+  apiCreateNote({
+    id: note.id,
+    title: note.title,
+    html: note.html,
+    json: JSON.stringify(note.json || {}),
+    tags: JSON.stringify(note.tags || []),
+  }).catch(() => {
+    /* 静默：后端不可达时只存本地 */
+  });
+}
+
+function syncUpdateToApi(id: string, data: Partial<Pick<Note, "title" | "html" | "json" | "tags">>): void {
+  if (!isLoggedIn()) return;
+  apiUpdateNote(id, {
+    title: data.title,
+    html: data.html,
+    json: data.json ? JSON.stringify(data.json) : undefined,
+    tags: data.tags ? JSON.stringify(data.tags) : undefined,
+  }).catch(() => {});
+}
+
+function syncDeleteToApi(id: string): void {
+  if (!isLoggedIn()) return;
+  apiDeleteNote(id).catch(() => {});
 }
 
 // ─── Users / Auth ───────────────────────────────────
@@ -47,13 +84,10 @@ export function registerUser(
 }
 
 export function loginUser(email: string, _password: string): User | null {
-  // Simple demo: create/return user based on email
-  // In real app: validate against stored credentials
   const existing = getStoredUser();
   if (existing && existing.email === email) {
     return existing;
   }
-  // First-time login: create from email
   const username = email.split("@")[0];
   return registerUser(username, email, _password);
 }
@@ -85,6 +119,7 @@ export function createNote(title: string): Note {
   const notes = getNotes();
   notes.unshift(note);
   saveNotes(notes);
+  syncCreateToApi(note);
   return note;
 }
 
@@ -101,10 +136,12 @@ export function updateNote(
     updatedAt: new Date().toISOString(),
   };
   saveNotes(notes);
+  syncUpdateToApi(id, data);
   return notes[idx];
 }
 
 export function deleteNote(id: string): void {
   const notes = getNotes().filter((n) => n.id !== id);
   saveNotes(notes);
+  syncDeleteToApi(id);
 }

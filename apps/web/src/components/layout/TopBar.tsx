@@ -1,14 +1,11 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Sun, Moon, User, LogOut, Export } from "@ai-notes/icons";
+import { Sun, Moon, User, LogOut, Server } from "@ai-notes/icons";
 import { Button } from "@ai-notes/ui-kit";
 import { useAuth } from "@/lib/auth";
-import { apiCreateNote, apiCreateProvider } from "@/lib/api";
-import { getNotes } from "@/lib/storage";
-import { getProviders } from "@/lib/providers";
 
 export function TopBar() {
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -16,8 +13,6 @@ export function TopBar() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ ok: number; fail: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,48 +30,6 @@ export function TopBar() {
   }, [menuOpen]);
 
   const isDark = mounted && (theme === "dark" || resolvedTheme === "dark");
-
-  const handleSync = useCallback(async () => {
-    setSyncing(true);
-    setSyncResult(null);
-    let ok = 0;
-    let fail = 0;
-
-    const notes = getNotes();
-    for (const note of notes) {
-      try {
-        await apiCreateNote({
-          title: note.title || "",
-          html: note.html || "",
-          json: note.json ? JSON.stringify(note.json) : "{}",
-          tags: JSON.stringify(note.tags || []),
-        });
-        ok++;
-      } catch {
-        fail++;
-      }
-    }
-
-    const providers = getProviders();
-    for (const p of providers) {
-      try {
-        await apiCreateProvider({
-          type: p.type,
-          name: p.name,
-          baseUrl: p.baseUrl,
-          apiKey: p.apiKey,
-          protocol: p.protocol,
-          models: JSON.stringify(p.models),
-        });
-        ok++;
-      } catch {
-        fail++;
-      }
-    }
-
-    setSyncResult({ ok, fail });
-    setSyncing(false);
-  }, []);
 
   return (
     <header className="flex h-14 items-center justify-end gap-2 border-b border-gray-200 bg-white px-4 dark:border-gray-800 dark:bg-gray-950">
@@ -114,27 +67,14 @@ export function TopBar() {
                   </p>
                 </div>
 
-                {/* 同步结果 */}
-                {syncResult && (
-                  <div className="mx-3 my-2 rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700 dark:bg-green-900/20 dark:text-green-400">
-                    同步完成：成功 {syncResult.ok} 条，失败 {syncResult.fail} 条
-                    <button
-                      onClick={() => setSyncResult(null)}
-                      className="ml-2 underline"
-                    >
-                      清除
-                    </button>
-                  </div>
-                )}
-
-                {/* 同步按钮 */}
+                {/* 多端同步占位 */}
                 <button
-                  onClick={handleSync}
-                  disabled={syncing}
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40 dark:text-gray-300 dark:hover:bg-gray-800"
+                  disabled
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-gray-400 opacity-60 dark:text-gray-500"
+                  title="即将开放"
                 >
-                  <Export size={16} />
-                  {syncing ? "同步中..." : "同步本地数据到服务器"}
+                  <Server size={16} />
+                  多端同步（即将开放）
                 </button>
 
                 {/* 退出登录 */}

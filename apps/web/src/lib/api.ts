@@ -1,7 +1,7 @@
 // API 客户端 — 封装对 Go 后端的 HTTP 调用
+// 通过 Next.js rewrites 同源代理，不走跨域
 
-// 开发环境后端地址；生产环境通过环境变量覆盖
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8888";
+const API_BASE = "";
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -53,11 +53,11 @@ export interface AuthResult {
 }
 
 export function apiRegister(username: string, password: string) {
-  return request<AuthResult>("POST", "/api/auth/register", { username, password });
+  return request<AuthResult>("POST", "/api/v1/auth/register", { username, password });
 }
 
 export function apiLogin(username: string, password: string) {
-  return request<AuthResult>("POST", "/api/auth/login", { username, password });
+  return request<AuthResult>("POST", "/api/v1/auth/login", { username, password });
 }
 
 // ─── Notes ──────────────────────────────────────
@@ -73,23 +73,23 @@ export interface NoteData {
 }
 
 export function apiListNotes() {
-  return request<NoteData[]>("GET", "/api/notes");
+  return request<NoteData[]>("GET", "/api/v1/notes");
 }
 
-export function apiCreateNote(data: { title?: string; html?: string; json?: string; tags?: string }) {
-  return request<NoteData>("POST", "/api/notes", data);
+export function apiCreateNote(data: { id?: string; title?: string; html?: string; json?: string; tags?: string }) {
+  return request<NoteData>("POST", "/api/v1/notes", data);
 }
 
 export function apiGetNote(id: string) {
-  return request<NoteData>("GET", `/api/notes/${id}`);
+  return request<NoteData>("GET", `/api/v1/notes/${id}`);
 }
 
 export function apiUpdateNote(id: string, data: { title?: string; html?: string; json?: string; tags?: string }) {
-  return request<{ status: string }>("PUT", `/api/notes/${id}`, data);
+  return request<{ status: string }>("PUT", `/api/v1/notes/${id}`, data);
 }
 
 export function apiDeleteNote(id: string) {
-  return request<{ status: string }>("DELETE", `/api/notes/${id}`);
+  return request<{ status: string }>("DELETE", `/api/v1/notes/${id}`);
 }
 
 // ─── Providers ──────────────────────────────────
@@ -105,17 +105,17 @@ export interface ProviderData {
 }
 
 export function apiListProviders() {
-  return request<ProviderData[]>("GET", "/api/providers");
+  return request<ProviderData[]>("GET", "/api/v1/providers");
 }
 
 export function apiCreateProvider(data: Omit<ProviderData, "id">) {
-  return request<ProviderData>("POST", "/api/providers", data);
+  return request<ProviderData>("POST", "/api/v1/providers", data);
 }
 
 export function apiUpdateProvider(id: string, data: Partial<ProviderData>) {
-  return request<{ status: string }>("PUT", `/api/providers/${id}`, data);
+  return request<{ status: string }>("PUT", `/api/v1/providers/${id}`, data);
 }
 
 export function apiDeleteProvider(id: string) {
-  return request<{ status: string }>("DELETE", `/api/providers/${id}`);
+  return request<{ status: string }>("DELETE", `/api/v1/providers/${id}`);
 }
