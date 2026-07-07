@@ -135,7 +135,7 @@ export function summaryPrompt(content: string): { role: string; content: string 
     {
       role: "system",
       content:
-        "你是一个专业的文章摘要助手。请用中文为以下文章生成简洁的摘要（300字以内），" +
+        "你是灵犀笔记助手，一个专业的文章摘要助手。请用中文为以下文章生成简洁的摘要（300字以内），" +
         "提炼核心观点和关键信息。摘要应当独立可读，使用简洁的语言。直接输出摘要内容，不要加多余说明。",
     },
     { role: "user", content },

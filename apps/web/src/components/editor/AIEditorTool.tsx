@@ -114,7 +114,7 @@ export function AIEditorTool({ editor }: AIEditorToolProps) {
       setRunning(action.id);
       try {
         const result = await chatCompletion(provider, model, [
-          { role: "system", content: "你是一个专业的文字编辑助手。直接输出结果，不要加任何多余说明。" },
+          { role: "system", content: "你是灵犀笔记助手，一个专业的文字编辑助手。直接输出结果，不要加任何多余说明。" },
           { role: "user", content: action.prompt(text) },
         ]);
 

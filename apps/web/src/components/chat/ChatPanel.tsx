@@ -67,9 +67,11 @@ export function ChatPanel({ open, onClose, noteTitle, noteHtml }: ChatPanelProps
       // 构建系统提示：基于笔记内容
       const noteContext = htmlToText(noteHtml || "").slice(0, 3000);
       const systemPrompt = noteContext
-        ? `你是一个基于用户笔记的 AI 助手。下面是用户当前笔记的内容，请根据笔记内容回答用户的问题。` +
-          `如果问题与笔记无关，可以结合你的知识回答。\n\n当前笔记标题：${noteTitle || "无标题"}\n\n笔记内容：\n${noteContext}`
-        : "你是一个 AI 助手，请回答用户的问题。";
+        ? `你是灵犀笔记助手，一个专注于帮助用户管理笔记和知识的 AI 助手。` +
+          `请根据用户当前笔记的内容回答用户的问题，回答要简洁有帮助。` +
+          `如果问题与笔记无关，可以结合你的知识回答。` +
+          `\n\n当前笔记标题：${noteTitle || "无标题"}\n\n笔记内容：\n${noteContext}`
+        : "你是灵犀笔记助手，一个专注于帮助用户管理笔记和知识的 AI 助手。请回答用户的问题，回答要简洁有帮助。";
 
       const systemMsg = { role: "system", content: systemPrompt };
       const history = messages.map((m) => ({ role: m.role, content: m.content }));
