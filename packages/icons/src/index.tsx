@@ -25,5 +25,10 @@ export { Loader2 } from "./Loader2";
 export { CheckCircle } from "./CheckCircle";
 export { XCircle } from "./XCircle";
 export { ExternalLink } from "./ExternalLink";
+export { Eye } from "./Eye";
+export { EyeOff } from "./EyeOff";
+export { Server } from "./Server";
+export { Cpu } from "./Cpu";
+export { RefreshCw } from "./RefreshCw";
 
 export type { IconProps } from "./types";

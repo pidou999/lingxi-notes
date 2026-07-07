@@ -13,6 +13,7 @@ import {
   Folder,
   ChevronLeft,
   Search,
+  Cpu,
 } from "@ai-notes/icons";
 
 export interface SidebarNavProps {
@@ -83,6 +84,13 @@ export function SidebarNav({
         icon: <Team size={20} />,
         href: "/team",
         active: pathname.startsWith("/team"),
+      },
+      {
+        id: "providers",
+        label: "模型配置",
+        icon: <Cpu size={20} />,
+        href: "/providers",
+        active: pathname.startsWith("/providers"),
       },
       {
         id: "settings",
