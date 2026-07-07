@@ -57,6 +57,13 @@ export default function NoteEditorPage({
     updateNote(id, { tags: newTags });
   };
 
+  const handleSaveChatContent = (content: string) => {
+    const current = getNote(id);
+    if (!current) return;
+    const newHtml = (current.html || "") + content;
+    updateNote(id, { html: newHtml });
+  };
+
   const handleDelete = () => {
     if (!confirm("确定删除这篇笔记吗？")) return;
     deleteNote(id);
@@ -152,6 +159,7 @@ export default function NoteEditorPage({
         onClose={() => setChatOpen(false)}
         noteTitle={title}
         noteHtml={note.html}
+        onSaveToNote={handleSaveChatContent}
       />
     </div>
   );

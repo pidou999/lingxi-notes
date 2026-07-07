@@ -16,12 +16,15 @@ interface ChatPanelProps {
   /** 当前笔记内容，作为 AI 上下文 */
   noteTitle?: string;
   noteHtml?: string;
+  /** 保存对话到笔记 */
+  onSaveToNote?: (content: string) => void;
 }
 
-export function ChatPanel({ open, onClose, noteTitle, noteHtml }: ChatPanelProps) {
+export function ChatPanel({ open, onClose, noteTitle, noteHtml, onSaveToNote }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -42,6 +45,7 @@ export function ChatPanel({ open, onClose, noteTitle, noteHtml }: ChatPanelProps
     if (loading) return;
     setMessages([]);
     setInput("");
+    setSaved(false);
     onClose();
   }, [loading, onClose]);
 
@@ -62,6 +66,7 @@ export function ChatPanel({ open, onClose, noteTitle, noteHtml }: ChatPanelProps
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
+    setSaved(false);
 
     try {
       // 构建系统提示：基于笔记内容
@@ -94,6 +99,23 @@ export function ChatPanel({ open, onClose, noteTitle, noteHtml }: ChatPanelProps
       setLoading(false);
     }
   };
+
+  const handleSaveToNote = useCallback(() => {
+    if (!onSaveToNote || messages.length === 0) return;
+
+    // 格式化为 blockquote
+    const lines = messages.map((m) => {
+      const role = m.role === "user" ? "Q" : "A";
+      return `> **${role}:** ${m.content}\n>\n`;
+    });
+
+    const title = noteTitle ? `「${noteTitle}」` : "";
+    const content = `\n\n<blockquote>\n<strong>💬 AI 对话记录${title}</strong>\n\n${lines.join("")}</blockquote>\n`;
+
+    onSaveToNote(content);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }, [onSaveToNote, messages, noteTitle]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -175,6 +197,24 @@ export function ChatPanel({ open, onClose, noteTitle, noteHtml }: ChatPanelProps
                 <Loader2 size={14} className="animate-spin" />
                 思考中...
               </div>
+            </div>
+          )}
+
+          {/* Save to note button */}
+          {messages.length > 0 && !loading && (
+            <div className="flex justify-center pt-1">
+              <button
+                onClick={handleSaveToNote}
+                disabled={saved}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                  saved
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    : "border border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600 dark:border-gray-700 dark:text-gray-500 dark:hover:border-gray-600 dark:hover:text-gray-300"
+                }`}
+              >
+                <Note size={12} />
+                {saved ? "已保存 ✓" : "保存到笔记"}
+              </button>
             </div>
           )}
 
