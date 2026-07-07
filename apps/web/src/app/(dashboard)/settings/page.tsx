@@ -177,7 +177,7 @@ export default function SettingsPage() {
   );
 }
 
-// ── 开关行组件 ──
+// ── 开关行组件（无 label 文字，只有开关） ──
 
 function SwitchRow({
   label,
@@ -198,7 +198,10 @@ function SwitchRow({
           {description}
         </p>
       </div>
-      <Switch defaultChecked={defaultChecked} />
+      <Switch
+        defaultChecked={defaultChecked}
+        onChange={() => {}}
+      />
     </div>
   );
 }
