@@ -81,7 +81,22 @@ export async function POST(request: NextRequest) {
       throw new Error(`API ${resp.status}: ${text.slice(0, 300)}`);
     }
 
-    const data = await resp.json();
+    // 先读文本，再从中提取 JSON（部分 API 返回时带额外换行/空白/流式残留）
+    const raw = await resp.text();
+    let data: any;
+    try {
+      // 尝试直接解析
+      data = JSON.parse(raw);
+    } catch {
+      // 解析失败：尝试找到第一个 { 到最后一个 } 之间的内容
+      const start = raw.indexOf("{");
+      const end = raw.lastIndexOf("}");
+      if (start !== -1 && end > start) {
+        data = JSON.parse(raw.slice(start, end + 1));
+      } else {
+        throw new Error(`响应不是有效 JSON: ${raw.slice(0, 200)}`);
+      }
+    }
 
     let content = "";
     if (protocol === "Anthropic") {
