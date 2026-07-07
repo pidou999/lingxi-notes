@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
-import { Close, Loader2, Plus } from "@ai-notes/icons";
+import { Close, Loader2 } from "@ai-notes/icons";
 import { chatCompletion, getProviders } from "@/lib/providers";
 import { tagPrompt, parseTagResult } from "@/lib/tags";
 
@@ -69,49 +69,49 @@ export function TagInput({ tags, onChange, noteTitle, noteHtml }: TagInputProps)
 
   return (
     <div className="space-y-2">
-      {/* 已有标签 */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        {tags.map((tag) => (
-          <span
-            key={tag}
-            className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-300"
-          >
-            {tag}
-            <button
-              type="button"
-              onClick={() => removeTag(tag)}
-              className="rounded-full p-0.5 hover:bg-brand-100 dark:hover:bg-brand-800"
+      {/* 标签行 + AI 按钮同行 */}
+      <div className="flex items-start gap-2">
+        <div className="flex flex-1 flex-wrap items-center gap-1.5">
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-300"
             >
-              <Close size={10} />
-            </button>
-          </span>
-        ))}
+              {tag}
+              <button
+                type="button"
+                onClick={() => removeTag(tag)}
+                className="rounded-full p-0.5 hover:bg-brand-100 dark:hover:bg-brand-800"
+              >
+                <Close size={10} />
+              </button>
+            </span>
+          ))}
 
-        {/* 输入框 */}
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={tags.length === 0 ? "添加标签，按 Enter 确认..." : "添加标签"}
-          className="min-w-[80px] flex-1 border-0 bg-transparent text-xs text-gray-700 placeholder-gray-400 outline-none dark:text-gray-300 dark:placeholder-gray-500"
-        />
-      </div>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={tags.length === 0 ? "添加标签，按 Enter 确认..." : "添加标签"}
+            className="min-w-[80px] flex-1 border-0 bg-transparent text-xs text-gray-700 placeholder-gray-400 outline-none dark:text-gray-300 dark:placeholder-gray-500"
+          />
+        </div>
 
-      {/* AI 推荐按钮 */}
-      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={handleSuggest}
           disabled={suggesting || (!noteTitle && !noteHtml)}
-          className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-500 transition-colors hover:border-brand-300 hover:text-brand-600 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-brand-500 dark:hover:text-brand-400"
+          className="shrink-0 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-500 transition-colors hover:border-brand-300 hover:text-brand-600 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-brand-500 dark:hover:text-brand-400"
         >
           {suggesting ? (
-            <Loader2 size={12} className="animate-spin" />
+            <span className="inline-flex items-center gap-1">
+              <Loader2 size={12} className="animate-spin" />
+              推荐中
+            </span>
           ) : (
-            <Plus size={12} />
+            "AI 推荐标签"
           )}
-          AI 推荐标签
         </button>
       </div>
 
@@ -129,8 +129,7 @@ export function TagInput({ tags, onChange, noteTitle, noteHtml }: TagInputProps)
               }}
               className="inline-flex items-center gap-0.5 rounded-full border border-dashed border-brand-300 px-2 py-0.5 text-xs text-brand-600 transition-colors hover:bg-brand-100 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-900/30"
             >
-              <Plus size={10} />
-              {tag}
+              + {tag}
             </button>
           ))}
         </div>

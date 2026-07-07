@@ -23,6 +23,7 @@ export default function BookmarksPage() {
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!confirm("确定删除这条收藏吗？")) return;
     deleteNote(id);
     setMenuOpen(null);
     setClips((prev) => prev.filter((c) => c.id !== id));

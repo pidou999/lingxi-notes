@@ -56,6 +56,7 @@ export default function NoteEditorPage({
   };
 
   const handleDelete = () => {
+    if (!confirm("确定删除这篇笔记吗？")) return;
     deleteNote(id);
     router.replace("/notes");
   };

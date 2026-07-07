@@ -73,6 +73,7 @@ export default function NotesPage() {
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!confirm("确定删除这篇笔记吗？")) return;
     deleteNote(id);
     setMenuOpen(null);
     refresh();
