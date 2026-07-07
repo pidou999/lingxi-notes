@@ -3,6 +3,7 @@
 import { useState, useRef, type FormEvent } from "react";
 import { Button } from "@ai-notes/ui-kit";
 import { Note as NoteIcon, ExternalLink, Loader2, CheckCircle, XCircle } from "@ai-notes/icons";
+import { getCookieForUrl } from "@/lib/cookies";
 
 interface ClipResult {
   title: string;
@@ -44,10 +45,11 @@ export function ClipDialog({
     setResult(null);
 
     try {
+      const cookie = getCookieForUrl(url.trim());
       const resp = await fetch("/api/clip/fetch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify({ url: url.trim(), cookie }),
       });
 
       const data = await resp.json();

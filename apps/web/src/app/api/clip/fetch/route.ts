@@ -198,7 +198,134 @@ async function fetchWechat(url: string): Promise<{
   return { title, contentMd };
 }
 
-// ====== 通用站点抓取（知乎等，fallback） ======
+// ====== 知乎文章抓取（需要 Cookie） ======
+
+async function fetchZhihu(
+  url: string,
+  cookie?: string
+): Promise<{
+  title: string;
+  contentMd: string;
+} | null> {
+  const headers: Record<string, string> = {
+    "User-Agent": UA,
+    Accept:
+      "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+  };
+  if (cookie) {
+    headers["Cookie"] = cookie;
+  }
+
+  const resp = await fetch(url, { headers });
+  if (!resp.ok) return null;
+  const html = await resp.text();
+
+  const cheerio = await import("cheerio");
+  const $ = cheerio.load(html);
+
+  // 提取标题
+  let title =
+    $('meta[property="og:title"]').attr("content") ||
+    $('meta[name="title"]').attr("content") ||
+    $("title").text().trim() ||
+    "";
+
+  // 提取正文
+  let contentEl = $(".RichText").first();
+  if (!contentEl.length) contentEl = $(".Post-RichText").first();
+  if (!contentEl.length) contentEl = $('article').first();
+  if (!contentEl.length) contentEl = $('[role="main"]').first();
+
+  if (!contentEl.length) return null;
+
+  // 提取并下载图片
+  const imgUrls: string[] = [];
+  contentEl.find("img").each((_: number, el: any) => {
+    const src =
+      $(el).attr("data-actualsrc") ||
+      $(el).attr("data-original") ||
+      $(el).attr("src") ||
+      "";
+    if (src && src.startsWith("http") && !src.startsWith("data:")) {
+      imgUrls.push(src);
+    }
+  });
+
+  const urlMap = await downloadAllImages(imgUrls, url);
+
+  // 替换图片地址
+  contentEl.find("img").each((_: number, el: any) => {
+    const $el = $(el);
+    const original =
+      $el.attr("data-actualsrc") ||
+      $el.attr("data-original") ||
+      $el.attr("src") ||
+      "";
+    const local = urlMap.get(original);
+    if (local) {
+      $el.attr("src", local);
+      ["data-actualsrc", "data-original", "data-size", "data-caption"].forEach(
+        (a) => $el.removeAttr(a)
+      );
+    }
+  });
+
+  contentEl
+    .find(
+      "script, style, svg, button, canvas, iframe, nav, footer, aside, meta, link"
+    )
+    .remove();
+
+  const Turndown = (await import("turndown")).default;
+  const td = new Turndown({
+    headingStyle: "atx",
+    linkStyle: "inlined",
+    codeBlockStyle: "fenced",
+  });
+
+  td.addRule("images", {
+    filter: "img",
+    replacement: (_content: string, node: any) => {
+      const src = node.getAttribute("src") || "";
+      const alt = node.getAttribute("alt") || "图片";
+      if (!src || src.startsWith("data:")) return "";
+      return `![${alt}](${src})`;
+    },
+  });
+
+  td.addRule("links", {
+    filter: "a",
+    replacement: (content: string, node: any) => {
+      const href = node.getAttribute("href") || "";
+      if (!href || href.startsWith("javascript:") || href === "#")
+        return content;
+      return `[${content}](${href})`;
+    },
+  });
+
+  const contentHtml = contentEl.html() || "";
+  let contentMd = td.turndown(contentHtml);
+  contentMd = contentMd.replace(/\n{4,}/g, "\n\n\n").trim();
+
+  if (!contentMd || contentMd.length < 20) return null;
+
+  // 添加元信息
+  const author =
+    $('.AuthorInfo-name .ProfileLink').first().text().trim() ||
+    $('meta[name="author"]').attr("content") ||
+    "";
+  const metaParts: string[] = [];
+  if (author) metaParts.push(`**作者**：${author}`);
+  metaParts.push(`**来源**：知乎`);
+  metaParts.push(`**原文**：[${url}](${url})`);
+
+  contentMd = `${metaParts.join("\n")}\n\n---\n\n${contentMd}`;
+
+  return { title, contentMd };
+}
+
+// ====== 通用站点抓取（fallback） ======
 
 async function fetchGeneric(url: string): Promise<{
   title: string;
@@ -301,6 +428,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const url = typeof body.url === "string" ? body.url.trim() : "";
+    const cookie = typeof body.cookie === "string" ? body.cookie : undefined;
 
     if (!url) {
       return NextResponse.json(
@@ -318,6 +446,25 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: false,
           error: "无法抓取该微信文章，可能已失效或需要登录",
+        });
+      }
+    }
+    // ===== 知乎 =====
+    else if (
+      url.includes("zhuanlan.zhihu.com") ||
+      url.includes("zhihu.com")
+    ) {
+      result = await fetchZhihu(url, cookie);
+      if (!result) {
+        if (!cookie) {
+          return NextResponse.json({
+            success: false,
+            error: "抓取知乎需要配置 Cookie，请前往 设置 → 抓取配置 添加 zhihu.com 的 Cookie",
+          });
+        }
+        return NextResponse.json({
+          success: false,
+          error: "无法抓取该知乎文章，Cookie 可能已过期，请更新后重试",
         });
       }
     } else {
