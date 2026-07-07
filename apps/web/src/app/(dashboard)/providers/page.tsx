@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Settings, Server, Cpu, CheckCircle, XCircle, ChevronDown, Eye, EyeOff, Loader2, RefreshCw } from "@ai-notes/icons";
 import { Button, Modal } from "@ai-notes/ui-kit";
 import {
@@ -24,7 +24,8 @@ function ProviderCard({
   onEdit: () => void;
 }) {
   const preset = getPresetProvider(provider.type);
-  const displayName = preset?.name || provider.name;
+  const displayName =
+    provider.type === "custom" ? provider.name : preset?.name || provider.name;
   const hasModels = provider.models.length > 0;
 
   return (
@@ -169,6 +170,7 @@ function AddProviderDialog({
   const [fetching, setFetching] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<boolean | null>(null);
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
 
   const isEditing = !!editProvider;
   const isCustom = selectedPreset === "custom";
@@ -196,6 +198,27 @@ function AddProviderDialog({
       setShowModelDropdown(false);
     }
   }, [open, editProvider]);
+
+  // 模型下拉点击外部关闭
+  useEffect(() => {
+    if (!showModelDropdown) return;
+    const handleClick = (e: MouseEvent) => {
+      if (
+        modelDropdownRef.current &&
+        !modelDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowModelDropdown(false);
+      }
+    };
+    // Use setTimeout to avoid the same click that opened it
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleClick);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleClick);
+    };
+  }, [showModelDropdown]);
 
   const handlePresetSelect = (value: string) => {
     setSelectedPreset(value);
@@ -351,7 +374,7 @@ function AddProviderDialog({
         </div>
 
         {/* 模型选择 */}
-        <div>
+        <div ref={modelDropdownRef}>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
             模型
           </label>
@@ -361,6 +384,9 @@ function AddProviderDialog({
                 type="text"
                 value={modelInput}
                 onChange={(e) => setModelInput(e.target.value)}
+                onFocus={() => {
+                  if (fetchedModels.length > 0) setShowModelDropdown(true);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -396,28 +422,7 @@ function AddProviderDialog({
             </button>
           </div>
 
-          {/* 已选模型 */}
-          {models.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {models.map((m) => (
-                <span
-                  key={m}
-                  className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-2 py-0.5 text-xs text-brand-700 dark:bg-brand-900/30 dark:text-brand-400"
-                >
-                  {m}
-                  <button
-                    type="button"
-                    onClick={() => toggleModel(m)}
-                    className="ml-0.5 hover:text-red-500"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* 模型下拉列表 */}
+          {/* 模型下拉列表（多选） */}
           {showModelDropdown && fetchedModels.length > 0 && (
             <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900">
               {fetchedModels.map((m) => (
