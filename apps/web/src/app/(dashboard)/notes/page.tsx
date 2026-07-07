@@ -26,7 +26,7 @@ export default function NotesPage() {
 
   const handleCreate = () => {
     const note = createNote("");
-    router.push(`/notes/${note.id}`);
+    router.push(`/edit?id=${note.id}`);
   };
 
   const handleClipSave = (result: { title: string; content: string; url: string; summary?: string }) => {
@@ -68,7 +68,7 @@ export default function NotesPage() {
       html: fullHtml,
       json: {}, // 清空 json，让编辑器从 html 回退渲染
     });
-    router.push(`/notes/${note.id}`);
+    router.push(`/edit?id=${note.id}`);
   };
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
@@ -121,7 +121,7 @@ export default function NotesPage() {
           {notes.map((note) => (
             <div
               key={note.id}
-              onClick={() => router.push(`/notes/${note.id}`)}
+              onClick={() => router.push(`/edit?id=${note.id}`)}
               className="group relative cursor-pointer rounded-xl border border-gray-200 bg-white p-4 transition-all hover:border-brand-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:hover:border-brand-700"
             >
               <div className="flex items-start justify-between">

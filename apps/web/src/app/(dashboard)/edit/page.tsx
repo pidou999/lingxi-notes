@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, use, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@ai-notes/ui-kit";
 import { ArrowLeft, Trash2, Ai } from "@ai-notes/icons";
 import { TipTapEditor, type TipTapEditorHandle } from "@/components/editor/TipTapEditor";
@@ -10,12 +10,9 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 import { getNote, updateNote, deleteNote } from "@/lib/storage";
 import type { Note } from "@/lib/types";
 
-export default function NoteEditorPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+export default function NoteEditorPage() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id") || "";
   const router = useRouter();
   const [note, setNote] = useState<Note | null>(null);
   const [title, setTitle] = useState("");
@@ -25,6 +22,10 @@ export default function NoteEditorPage({
   const editorRef = useRef<TipTapEditorHandle>(null);
 
   const loadNote = useCallback(() => {
+    if (!id) {
+      setNotFound(true);
+      return;
+    }
     const found = getNote(id);
     if (!found) {
       setNotFound(true);
@@ -72,6 +73,17 @@ export default function NoteEditorPage({
   const handleGoBack = () => {
     router.push("/notes");
   };
+
+  if (!id) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <p className="text-lg text-gray-500 dark:text-gray-400">缺少笔记 ID</p>
+        <Button className="mt-4" onClick={handleGoBack}>
+          返回笔记列表
+        </Button>
+      </div>
+    );
+  }
 
   if (notFound) {
     return (

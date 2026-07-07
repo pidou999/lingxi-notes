@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -11,6 +12,9 @@ import (
 )
 
 func main() {
+	prod := flag.Bool("prod", false, "生产模式：嵌入静态文件并监听 8877 端口")
+	flag.Parse()
+
 	// 数据库路径（和可执行文件同级）
 	exec, _ := os.Executable()
 	dir := filepath.Dir(exec)
@@ -31,6 +35,11 @@ func main() {
 	// 公开路由
 	r.Post("/api/v1/auth/register", registerHandler(db))
 	r.Post("/api/v1/auth/login", loginHandler(db))
+
+	// 代理路由（公开，AI 功能可能未登录使用）
+	r.Post("/api/proxy/fetch-models", proxyFetchModelsHandler)
+	r.Post("/api/proxy/test-connection", proxyTestConnectionHandler)
+	r.Post("/api/proxy/chat", proxyChatHandler)
 
 	// 认证路由
 	r.Group(func(r chi.Router) {
@@ -53,8 +62,17 @@ func main() {
 		r.Get("/api/v1/search", searchHandler(db))
 	})
 
+	// 生产模式：嵌入静态文件
+	if *prod {
+		log.Println("生产模式 - 嵌入静态前端文件")
+		r.HandleFunc("/*", staticFileHandler())
+	}
+
 	addr := ":8888"
-	log.Printf("灵犀 API 服务启动于 %s", addr)
+	if *prod {
+		addr = ":8877"
+	}
+	log.Printf("灵犀 API 服务启动于 %s %s", addr, map[bool]string{false: "(开发模式)", true: "(生产模式)"}[*prod])
 	if err := http.ListenAndServe(addr, r); err != nil {
 		log.Fatalf("服务启动失败: %v", err)
 	}

@@ -103,7 +103,7 @@ export function SmartSearch() {
     setShowResults(false);
     setQuery("");
     setResults([]);
-    router.push(`/notes/${id}`);
+    router.push(`/edit?id=${id}`);
   };
 
   const clearSearch = () => {

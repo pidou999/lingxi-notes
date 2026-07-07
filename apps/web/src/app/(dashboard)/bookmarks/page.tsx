@@ -71,7 +71,7 @@ export default function BookmarksPage() {
             return (
               <div
                 key={clip.id}
-                onClick={() => router.push(`/notes/${clip.id}`)}
+                onClick={() => router.push(`/edit?id=${clip.id}`)}
                 className="group relative cursor-pointer rounded-xl border border-gray-200 bg-white p-4 transition-all hover:border-brand-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:hover:border-brand-700"
               >
                 <div className="flex items-start justify-between">
