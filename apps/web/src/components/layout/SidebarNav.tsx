@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Sidebar, type SidebarItem } from "@ai-notes/ui-kit";
 import {
   Note,
@@ -12,9 +12,9 @@ import {
   Team,
   Folder,
   ChevronLeft,
-  Search,
   Cpu,
 } from "@ai-notes/icons";
+import { LingxiLogo } from "./LingxiLogo";
 
 export interface SidebarNavProps {
   collapsed: boolean;
@@ -28,7 +28,6 @@ export function SidebarNav({
   onItemClick,
 }: SidebarNavProps) {
   const pathname = usePathname();
-  const router = useRouter();
 
   const items: SidebarItem[] = useMemo(
     () => [
@@ -106,22 +105,9 @@ export function SidebarNav({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Search - click to jump to notes page with search */}
-      <div className="px-3 pt-3 pb-1">
-        <button
-          type="button"
-          onClick={() => router.push("/notes")}
-          className={`flex w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition-colors hover:border-brand-300 hover:ring-1 hover:ring-brand-300 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-brand-500 ${
-            collapsed ? "justify-center px-2" : ""
-          }`}
-        >
-          <Search size={16} className="shrink-0 text-gray-400" />
-          {!collapsed && (
-            <span className="min-w-0 flex-1 text-left text-gray-400">
-              搜索笔记...
-            </span>
-          )}
-        </button>
+      {/* Brand logo */}
+      <div className="px-4 pt-4 pb-2">
+        <LingxiLogo collapsed={collapsed} />
       </div>
 
       <Sidebar
