@@ -5,6 +5,15 @@ import { Button } from "@ai-notes/ui-kit";
 import { Note as NoteIcon, ExternalLink, Loader2, CheckCircle, XCircle } from "@ai-notes/icons";
 import { getCookieForUrl } from "@/lib/cookies";
 
+// 从 URL 中提取可读域名
+function extractDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
 interface ClipResult {
   title: string;
   content: string;
@@ -139,6 +148,35 @@ export function ClipDialog({
               )}
             </Button>
           </div>
+
+          {/* Cookie 状态提示 */}
+          {url.trim() && (() => {
+            const domain = extractDomain(url.trim());
+            const matchedCookie = getCookieForUrl(url.trim());
+            if (!domain) return null;
+            return (
+              <p className="flex items-center gap-1.5 text-xs">
+                {matchedCookie ? (
+                  <>
+                    <CheckCircle size={12} className="text-green-500" />
+                    <span className="text-green-600 dark:text-green-400">
+                      ✅ 已配置 Cookie（匹配 {domain}）
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle size={12} className="text-amber-500" />
+                    <span className="text-amber-600 dark:text-amber-400">
+                      {domain.includes("zhihu") || domain.includes("weixin") || domain.includes("mp.weixin")
+                        ? <>⚠️ 需要配置 {domain} 的 Cookie → 设置 / 抓取配置</>
+                        : <>ℹ️ {domain} 无需 Cookie（仅需登录的站点需要配置）</>
+                      }
+                    </span>
+                  </>
+                )}
+              </p>
+            );
+          })()}
 
           {/* 提示文字 */}
           <p className="text-xs text-gray-400 dark:text-gray-500">

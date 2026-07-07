@@ -25,7 +25,8 @@ export function saveSiteCookies(cookies: SiteCookie[]): void {
 /**
  * 从 URL 中匹配对应的已启用 Cookie
  */
-export function getCookieForUrl(url: string): string | null {
+export function getCookieForUrl(url: string | undefined | null): string | null {
+  if (!url) return null;
   try {
     const u = new URL(url);
     const hostname = u.hostname;
@@ -35,6 +36,8 @@ export function getCookieForUrl(url: string): string | null {
         return c.cookie;
       }
     }
-  } catch {}
+  } catch {
+    return null;
+  }
   return null;
 }
