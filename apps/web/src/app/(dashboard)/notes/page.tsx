@@ -28,7 +28,7 @@ export default function NotesPage() {
     router.push(`/notes/${note.id}`);
   };
 
-  const handleClipSave = (result: { title: string; content: string; url: string }) => {
+  const handleClipSave = (result: { title: string; content: string; url: string; summary?: string }) => {
     if (!result?.content) return;
     const note = createNote(result.title);
 
@@ -41,13 +41,27 @@ export default function NotesPage() {
       bodyHtml = "<pre>" + result.content.replace(/</g, "&lt;") + "</pre>";
     }
 
-    const fullHtml =
+    let fullHtml =
       '<p><a href="' +
       result.url +
       '">' +
       result.title +
-      "</a></p>\n" +
-      bodyHtml;
+      "</a></p>\n";
+
+    // 如果有摘要，插入到开头
+    if (result.summary) {
+      const escapedSummary = result.summary
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      fullHtml +=
+        '<blockquote style="border-left:3px solid #eab308;background:#fefce8;padding:12px 16px;margin:12px 0;border-radius:8px;color:#92400e">' +
+        "<strong>📝 摘要</strong><br>" +
+        escapedSummary.replace(/\n/g, "<br>") +
+        "</blockquote>\n";
+    }
+
+    fullHtml += bodyHtml;
 
     updateNote(note.id, {
       html: fullHtml,
