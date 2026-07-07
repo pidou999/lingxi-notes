@@ -37,6 +37,7 @@
   --color-text-primary: #f9fafb;
   --color-text-secondary: #9ca3af;
   --color-text-tertiary: #6b7280;
+  --switch-unchecked-bg: #4b5563;
 }
 
 /* Base responsive breakpoints as CSS custom properties */

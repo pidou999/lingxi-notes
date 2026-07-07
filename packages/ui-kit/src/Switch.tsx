@@ -1,4 +1,4 @@
-import { forwardRef, type InputHTMLAttributes } from "react";
+import { forwardRef, useId, type InputHTMLAttributes } from "react";
 import { cn } from "./cn";
 
 export interface SwitchProps
@@ -8,8 +8,8 @@ export interface SwitchProps
 
 export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
   ({ label, checked, onChange, disabled, className, id, ...props }, ref) => {
-    const switchId =
-      id || `switch-${label?.toLowerCase().replace(/\s+/g, "-")}`;
+    const fallbackId = useId();
+    const switchId = id || fallbackId;
 
     return (
       <label
@@ -28,15 +28,27 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
             checked={checked}
             onChange={onChange}
             disabled={disabled}
-            className="peer absolute inset-0 z-10 cursor-pointer opacity-0"
+            className="absolute inset-0 z-10 cursor-pointer opacity-0"
             role="switch"
             aria-checked={checked}
             {...props}
           />
           {/* 背景轨道 */}
-          <span className="block h-full w-full rounded-full bg-gray-300 transition-colors peer-checked:bg-brand-600 peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500 peer-focus-visible:ring-offset-2 dark:bg-gray-600 dark:peer-checked:bg-brand-500 dark:peer-focus-visible:ring-offset-gray-900" />
+          <span
+            className="block h-full w-full rounded-full transition-colors"
+            style={{
+              backgroundColor: checked
+                ? "var(--switch-checked-bg, #6366f1)"
+                : "var(--switch-unchecked-bg, #d1d5db)",
+            }}
+          />
           {/* 滑块圆点 */}
-          <span className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4" />
+          <span
+            className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform"
+            style={{
+              transform: checked ? "translateX(1rem)" : "translateX(0)",
+            }}
+          />
         </span>
         {label && (
           <span className="select-none text-sm font-medium text-gray-700 dark:text-gray-300">
