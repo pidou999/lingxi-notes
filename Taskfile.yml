@@ -1,0 +1,57 @@
+version: "3"
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  dev:
+    desc: Start development environment (Docker services + Go API)
+    cmds:
+      - task: docker-up
+      - echo "Waiting for services to become healthy..."
+      - sleep 3
+      - cd services/api && go run ./cmd/server
+
+  build:
+    desc: Build the API server binary
+    dir: services/api
+    cmds:
+      - go build -ldflags="-w -s" -o bin/server ./cmd/server
+
+  docker-up:
+    desc: Start all Docker services (PostgreSQL, Redis, MinIO)
+    dir: docker
+    cmds:
+      - docker compose up -d
+
+  docker-down:
+    desc: Stop all Docker services
+    dir: docker
+    cmds:
+      - docker compose down
+
+  docker-logs:
+    desc: Tail logs from all Docker services
+    dir: docker
+    cmds:
+      - docker compose logs -f
+
+  migrate-up:
+    desc: Run all pending database migrations
+    dir: services/api
+    cmds:
+      - go run ./cmd/migrate -direction up
+
+  migrate-down:
+    desc: Roll back the last database migration
+    dir: services/api
+    cmds:
+      - go run ./cmd/migrate -direction down
+
+  test:
+    desc: Run all Go tests
+    dir: services/api
+    cmds:
+      - go test -v -race -count=1 ./...

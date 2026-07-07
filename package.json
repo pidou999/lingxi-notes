@@ -1,0 +1,24 @@
+{
+  "name": "ai-notes",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter @ai-notes/web dev",
+    "build": "pnpm --filter @ai-notes/web build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "@tiptap/extension-image": "^2.27.2",
+    "@tiptap/extension-link": "^2.27.2",
+    "@types/node": "^26.1.0",
+    "marked": "^18.0.5"
+  }
+}

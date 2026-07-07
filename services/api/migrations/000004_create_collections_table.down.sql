@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS collection_notes CASCADE;
+DROP TABLE IF EXISTS collections CASCADE;

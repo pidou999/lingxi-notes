@@ -40,6 +40,10 @@ docker/data/
 *.dll
 *.so
 *.dylib
+bin/
+*.test
+*.test.exe
+vendor/
 
 # Test
 *.test
