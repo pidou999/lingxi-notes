@@ -192,6 +192,8 @@ function SwitchRow({
   description: string;
   defaultChecked?: boolean;
 }) {
+  const [checked, setChecked] = useState(defaultChecked ?? true);
+
   return (
     <div className="flex items-center justify-between px-6 py-4">
       <div className="flex-1">
@@ -203,8 +205,8 @@ function SwitchRow({
         </p>
       </div>
       <Switch
-        defaultChecked={defaultChecked}
-        onChange={() => {}}
+        checked={checked}
+        onChange={() => setChecked(!checked)}
       />
     </div>
   );

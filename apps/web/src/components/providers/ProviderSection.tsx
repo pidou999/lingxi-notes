@@ -305,7 +305,7 @@ export function ProviderSection() {
             <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">暂无服务商配置</p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             {providers.map((p) => (
               <ProviderCard key={p.id} provider={p} onEdit={() => handleEdit(p)} onDelete={() => handleDelete(p.id)} />
             ))}
