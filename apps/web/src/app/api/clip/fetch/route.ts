@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
-import { scrapeToutiao } from "@/lib/browser-scrape";
 
 // ====== 配置 ======
 
@@ -423,32 +422,75 @@ async function fetchGeneric(url: string): Promise<{
   return { title, contentMd };
 }
 
-// ====== 头条文章抓取（需要浏览器渲染） ======
+// ====== 头条文章抓取（使用 Baidu Spider UA 触发 SSR） ======
+
+const BAIDU_UA =
+  "Mozilla/5.0 (compatible; Baiduspider/2.0; +http://www.baidu.com/search/spider.html)";
 
 async function fetchToutiao(url: string): Promise<{
   title: string;
   contentMd: string;
 } | null> {
-  const result = await scrapeToutiao(url);
-  if (!result || !result.contentHtml) return null;
+  const resp = await fetch(url, {
+    headers: {
+      "User-Agent": BAIDU_UA,
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    },
+  });
+  if (!resp.ok) return null;
+  const html = await resp.text();
+  if (html.length < 1000) return null;
 
-  // 下载图片
-  const urlMap = await downloadAllImages(result.images, url);
-
-  // 用 cheerio 处理 HTML，替换图片地址
   const cheerio = await import("cheerio");
-  const $ = cheerio.load(result.contentHtml);
+  const $ = cheerio.load(html);
 
-  $("img").each((_: number, el: any) => {
-    const $el = $(el);
-    const src = $el.attr("src") || "";
-    const local = urlMap.get(src);
-    if (local) $el.attr("src", local);
+  // 1. 标题：优先 JSON-LD，其次 h1
+  let title = "";
+  const jsonLd = $('script[type="application/ld+json"]').first().text();
+  if (jsonLd) {
+    try {
+      const parsed = JSON.parse(jsonLd);
+      title = parsed.headline || "";
+    } catch {}
+  }
+  if (!title) title = $("h1").first().text().trim();
+  if (!title) title = $('meta[property="og:title"]').attr("content") || "";
+
+  // 2. 提取正文区
+  let contentEl = $("article.syl-article-base").first();
+  if (!contentEl.length) contentEl = $("article").first();
+  if (!contentEl.length) contentEl = $('[class*="article-content"]').first();
+  if (!contentEl.length) return null;
+
+  // 3. 提取图片
+  const imgUrls: string[] = [];
+  contentEl.find("img").each((_: number, el: any) => {
+    const src = $(el).attr("src") || $(el).attr("data-src") || "";
+    if (src && src.startsWith("http") && !src.startsWith("data:")) {
+      imgUrls.push(src);
+    }
   });
 
-  $("script, style, svg, iframe").remove();
+  const urlMap = await downloadAllImages(imgUrls, url);
 
-  // HTML → Markdown
+  // 替换图片地址
+  contentEl.find("img").each((_: number, el: any) => {
+    const $el = $(el);
+    const original = $el.attr("src") || $el.attr("data-src") || "";
+    const local = urlMap.get(original);
+    if (local) {
+      $el.attr("src", local);
+      const attrs = ($el[0] as any).attribs || {};
+      for (const key of Object.keys(attrs)) {
+        if (key.startsWith("data-")) $el.removeAttr(key);
+      }
+    }
+  });
+
+  contentEl.find("script, style, svg, iframe, .ttp-comment-block").remove();
+
+  // 4. HTML → Markdown
   const Turndown = (await import("turndown")).default;
   const td = new Turndown({
     headingStyle: "atx",
@@ -475,19 +517,31 @@ async function fetchToutiao(url: string): Promise<{
     },
   });
 
-  const contentHtml = $.html() || "";
+  const contentHtml = contentEl.html() || "";
   let contentMd = td.turndown(contentHtml);
   contentMd = contentMd.replace(/\n{4,}/g, "\n\n\n").trim();
 
-  // 添加来源信息
+  if (!contentMd || contentMd.length < 20) return null;
+
+  // 5. 从 JSON-LD 提取元信息
+  let source = "";
+  let publishTime = "";
+  try {
+    if (jsonLd) {
+      const parsed = JSON.parse(jsonLd);
+      if (parsed.author?.name) source = parsed.author.name;
+      if (parsed.datePublished) publishTime = parsed.datePublished.replace("T", " ").replace(/\+\d{2}:\d{2}$/, "");
+    }
+  } catch {}
+
   const metaParts: string[] = [];
-  if (result.source) metaParts.push(`**来源**：${result.source}`);
-  if (result.publishTime) metaParts.push(`**时间**：${result.publishTime}`);
+  if (source) metaParts.push(`**来源**：${source}`);
+  if (publishTime) metaParts.push(`**时间**：${publishTime}`);
   metaParts.push(`**原文**：[${url}](${url})`);
 
   contentMd = `${metaParts.join("\n")}\n\n---\n\n${contentMd}`;
 
-  return { title: result.title, contentMd };
+  return { title, contentMd };
 }
 
 // ====== 主入口 ======
