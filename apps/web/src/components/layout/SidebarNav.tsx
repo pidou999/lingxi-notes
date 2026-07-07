@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Sidebar, type SidebarItem } from "@ai-notes/ui-kit";
 import {
   Note,
@@ -28,6 +28,7 @@ export function SidebarNav({
   onItemClick,
 }: SidebarNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const items: SidebarItem[] = useMemo(
     () => [
@@ -105,29 +106,31 @@ export function SidebarNav({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Search at top of sidebar */}
+      {/* Search - click to jump to notes page with search */}
       <div className="px-3 pt-3 pb-1">
-        <div
-          className={`flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition-colors focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:focus-within:border-brand-400 ${
+        <button
+          type="button"
+          onClick={() => router.push("/notes")}
+          className={`flex w-full items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition-colors hover:border-brand-300 hover:ring-1 hover:ring-brand-300 dark:border-gray-700 dark:bg-gray-900 dark:hover:border-brand-500 ${
             collapsed ? "justify-center px-2" : ""
           }`}
         >
           <Search size={16} className="shrink-0 text-gray-400" />
           {!collapsed && (
-            <input
-              type="text"
-              placeholder="搜索笔记..."
-              className="min-w-0 flex-1 bg-transparent text-gray-900 placeholder-gray-400 outline-none dark:text-gray-100 dark:placeholder-gray-500"
-            />
+            <span className="min-w-0 flex-1 text-left text-gray-400">
+              搜索笔记...
+            </span>
           )}
-        </div>
+        </button>
       </div>
+
       <Sidebar
         items={items}
         collapsed={collapsed}
         onItemClick={onItemClick}
         className="flex-1"
       />
+
       <div className="border-t border-gray-200 dark:border-gray-700">
         <Sidebar
           items={bottomItems}
@@ -135,7 +138,9 @@ export function SidebarNav({
           onItemClick={onItemClick}
         />
       </div>
+
       <button
+        type="button"
         onClick={onToggleCollapse}
         className="flex items-center justify-center border-t border-gray-200 p-3 text-gray-400 hover:text-gray-600 dark:border-gray-700 dark:hover:text-gray-300"
         aria-label={collapsed ? "展开侧边栏" : "折叠侧边栏"}
