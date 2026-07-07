@@ -19,8 +19,19 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
           disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
           className
         )}
+        style={{ cursor: disabled ? "not-allowed" : "pointer" }}
       >
-        <span className="relative inline-block h-5 w-9 shrink-0">
+        {/* 容器：固定 36x20 */}
+        <span
+          style={{
+            position: "relative",
+            display: "inline-block",
+            width: "36px",
+            height: "20px",
+            flexShrink: 0,
+          }}
+        >
+          {/* 原生 checkbox（透明但可点击） */}
           <input
             ref={ref}
             id={switchId}
@@ -28,30 +39,54 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
             checked={checked}
             onChange={onChange}
             disabled={disabled}
-            className="absolute inset-0 z-10 cursor-pointer opacity-0"
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 10,
+              cursor: disabled ? "not-allowed" : "pointer",
+              opacity: 0,
+              margin: 0,
+            }}
             role="switch"
             aria-checked={checked}
             {...props}
           />
           {/* 背景轨道 */}
           <span
-            className="block h-full w-full rounded-full transition-colors"
             style={{
-              backgroundColor: checked
-                ? "var(--switch-checked-bg, #6366f1)"
-                : "var(--switch-unchecked-bg, #d1d5db)",
+              display: "block",
+              height: "100%",
+              width: "100%",
+              borderRadius: "999px",
+              backgroundColor: checked ? "#6366f1" : "#d1d5db",
+              transition: "background-color 0.15s ease",
             }}
           />
           {/* 滑块圆点 */}
           <span
-            className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform"
             style={{
-              transform: checked ? "translateX(1rem)" : "translateX(0)",
+              position: "absolute",
+              left: "2px",
+              top: "2px",
+              height: "16px",
+              width: "16px",
+              borderRadius: "999px",
+              backgroundColor: "#ffffff",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              transition: "transform 0.15s ease",
+              transform: checked ? "translateX(16px)" : "translateX(0)",
             }}
           />
         </span>
         {label && (
-          <span className="select-none text-sm font-medium text-gray-700 dark:text-gray-300">
+          <span
+            style={{
+              userSelect: "none",
+              fontSize: "14px",
+              fontWeight: 500,
+              color: "inherit",
+            }}
+          >
             {label}
           </span>
         )}
