@@ -7,7 +7,9 @@
   ],
   "scripts": {
     "dev": "pnpm --filter @ai-notes/web dev",
-    "build": "pnpm --filter @ai-notes/web build"
+    "build": "pnpm --filter @ai-notes/web build",
+    "server": "cd apps/server && go run .",
+    "server:build": "cd apps/server && go build -ldflags=\"-s -w\" -o lingxi-server.exe ."
   },
   "engines": {
     "node": ">=18"
