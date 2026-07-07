@@ -1,6 +1,6 @@
 // API 客户端 — 封装对 Go 后端的 HTTP 调用
 
-const API_BASE = "http://localhost:8888";
+const API_BASE = "";
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
