@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { useEditor, EditorContent, type EditorOptions } from "@tiptap/react";
 import { TextSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
@@ -22,17 +22,15 @@ export interface TipTapEditorProps {
   onAutoSave?: (html: string, json: Record<string, unknown>) => void;
 }
 
-export function TipTapEditor({
-  content = "",
-  contentJson,
-  onChange,
-  placeholder = "开始写作...",
-  editable = true,
-  className,
-  editorClassName,
-  autoSaveDelay = 2000,
-  onAutoSave,
-}: TipTapEditorProps) {
+export interface TipTapEditorHandle {
+  /** 在编辑器末尾追加 HTML 内容 */
+  appendHtml: (html: string) => void;
+}
+
+export const TipTapEditor = forwardRef<TipTapEditorHandle, TipTapEditorProps>(function TipTapEditor(
+  { content = "", contentJson, onChange, placeholder = "开始写作...", editable = true, className, editorClassName, autoSaveDelay = 2000, onAutoSave }: TipTapEditorProps,
+  ref
+) {
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInternalChange = useRef(false);
 
@@ -218,6 +216,26 @@ export function TipTapEditor({
     };
   }, []);
 
+  // Expose editor methods via ref
+  useImperativeHandle(
+    ref,
+    () => ({
+      appendHtml(html: string) {
+        if (editor && !editor.isDestroyed) {
+          editor.commands.focus();
+          // Insert at end of document
+          const pos = editor.state.doc.content.size;
+          editor.commands.insertContentAt(pos, html);
+          // Trigger auto-save
+          if (onAutoSave) {
+            onAutoSave(editor.getHTML(), editor.getJSON() as Record<string, unknown>);
+          }
+        }
+      },
+    }),
+    [editor, onAutoSave]
+  );
+
   return (
     <div
       className={cn(
@@ -231,4 +249,4 @@ export function TipTapEditor({
       </div>
     </div>
   );
-}
+});

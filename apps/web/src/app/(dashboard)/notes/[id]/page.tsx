@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@ai-notes/ui-kit";
 import { ArrowLeft, Trash2, Ai } from "@ai-notes/icons";
-import { TipTapEditor } from "@/components/editor/TipTapEditor";
+import { TipTapEditor, type TipTapEditorHandle } from "@/components/editor/TipTapEditor";
 import { TagInput } from "@/components/tags/TagInput";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { getNote, updateNote, deleteNote } from "@/lib/storage";
@@ -22,6 +22,7 @@ export default function NoteEditorPage({
   const [tags, setTags] = useState<string[]>([]);
   const [notFound, setNotFound] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const editorRef = useRef<TipTapEditorHandle>(null);
 
   const loadNote = useCallback(() => {
     const found = getNote(id);
@@ -58,10 +59,8 @@ export default function NoteEditorPage({
   };
 
   const handleSaveChatContent = (content: string) => {
-    const current = getNote(id);
-    if (!current) return;
-    const newHtml = (current.html || "") + content;
-    updateNote(id, { html: newHtml });
+    // 直接插入编辑器末尾，auto-save 会自然持久化
+    editorRef.current?.appendHtml(content);
   };
 
   const handleDelete = () => {
@@ -142,6 +141,7 @@ export default function NoteEditorPage({
 
       {/* Editor - fill remaining space */}
       <TipTapEditor
+        ref={editorRef}
         contentJson={
           note.json && Object.keys(note.json).length > 0
             ? (note.json as Record<string, unknown>)

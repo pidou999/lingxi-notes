@@ -103,14 +103,20 @@ export function ChatPanel({ open, onClose, noteTitle, noteHtml, onSaveToNote }: 
   const handleSaveToNote = useCallback(() => {
     if (!onSaveToNote || messages.length === 0) return;
 
-    // 格式化为 blockquote
-    const lines = messages.map((m) => {
-      const role = m.role === "user" ? "Q" : "A";
-      return `> **${role}:** ${m.content}\n>\n`;
-    });
+    // HTML 转义用户内容，防止注入
+    const escapeHtml = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-    const title = noteTitle ? `「${noteTitle}」` : "";
-    const content = `\n\n<blockquote>\n<strong>💬 AI 对话记录${title}</strong>\n\n${lines.join("")}</blockquote>\n`;
+    // 格式化为干净的 HTML（TipTap 可解析）
+    const items = messages
+      .map((m) => {
+        const role = m.role === "user" ? "Q" : "A";
+        return `<p><strong>${role}:</strong> ${escapeHtml(m.content)}</p>`;
+      })
+      .join("");
+
+    const title = noteTitle ? `「${escapeHtml(noteTitle)}」` : "";
+    const content = `<blockquote><strong>💬 AI 对话记录${title}</strong>${items}</blockquote>`;
 
     onSaveToNote(content);
     setSaved(true);
