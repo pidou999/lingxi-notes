@@ -7,6 +7,7 @@ import { Note as NoteIcon, MoreHorizontal, Trash2, Link as LinkIcon } from "@ai-
 import { getNotes, createNote, deleteNote, updateNote } from "@/lib/storage";
 import type { Note } from "@/lib/types";
 import { ClipDialog } from "@/components/clip/ClipDialog";
+import { SmartSearch } from "@/components/search/SmartSearch";
 import { marked } from "marked";
 
 export default function NotesPage() {
@@ -98,6 +99,9 @@ export default function NotesPage() {
           </Button>
         </div>
       </div>
+
+      {/* Search bar */}
+      <SmartSearch />
 
       {notes.length === 0 ? (
         <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-gray-300 p-16 dark:border-gray-700">
