@@ -9,6 +9,7 @@ export interface Note {
   title: string;
   html: string;
   json: Record<string, unknown>;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }

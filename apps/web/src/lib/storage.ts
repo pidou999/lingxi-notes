@@ -90,7 +90,7 @@ export function createNote(title: string): Note {
 
 export function updateNote(
   id: string,
-  data: Partial<Pick<Note, "title" | "html" | "json">>
+  data: Partial<Pick<Note, "title" | "html" | "json" | "tags">>
 ): Note | undefined {
   const notes = getNotes();
   const idx = notes.findIndex((n) => n.id === id);

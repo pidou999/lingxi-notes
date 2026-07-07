@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@ai-notes/ui-kit";
 import { ArrowLeft, Trash2 } from "@ai-notes/icons";
 import { TipTapEditor } from "@/components/editor/TipTapEditor";
+import { TagInput } from "@/components/tags/TagInput";
 import { getNote, updateNote, deleteNote } from "@/lib/storage";
 import type { Note } from "@/lib/types";
 
@@ -17,6 +18,7 @@ export default function NoteEditorPage({
   const router = useRouter();
   const [note, setNote] = useState<Note | null>(null);
   const [title, setTitle] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
   const [notFound, setNotFound] = useState(false);
 
   const loadNote = useCallback(() => {
@@ -27,6 +29,7 @@ export default function NoteEditorPage({
     }
     setNote(found);
     setTitle(found.title);
+    setTags(found.tags || []);
   }, [id]);
 
   useEffect(() => {
@@ -45,6 +48,11 @@ export default function NoteEditorPage({
     setTitle(newTitle);
     const updated = updateNote(id, { title: newTitle });
     if (updated) setNote(updated);
+  };
+
+  const handleTagsChange = (newTags: string[]) => {
+    setTags(newTags);
+    updateNote(id, { tags: newTags });
   };
 
   const handleDelete = () => {
@@ -100,6 +108,16 @@ export default function NoteEditorPage({
         >
           <Trash2 size={18} />
         </Button>
+      </div>
+
+      {/* Tags */}
+      <div className="mb-3 px-1">
+        <TagInput
+          tags={tags}
+          onChange={handleTagsChange}
+          noteTitle={title}
+          noteHtml={note.html}
+        />
       </div>
 
       {/* Editor - fill remaining space */}

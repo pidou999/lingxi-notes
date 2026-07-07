@@ -156,6 +156,18 @@ export default function NotesPage() {
                   ? note.html.replace(/<[^>]*>/g, "").slice(0, 120)
                   : "空笔记"}
               </p>
+              {note.tags && note.tags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {note.tags.slice(0, 4).map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-600 dark:bg-brand-900/30 dark:text-brand-400"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
               <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
                 {new Date(note.updatedAt).toLocaleDateString("zh-CN", {
                   year: "numeric",
