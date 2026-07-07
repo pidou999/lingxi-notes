@@ -3,7 +3,7 @@
 import { useTheme } from "next-themes";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Sun, Moon, User, LogOut, Server } from "@ai-notes/icons";
+import { Sun, Moon, User, LogOut, Server, Team } from "@ai-notes/icons";
 import { Button } from "@ai-notes/ui-kit";
 import { useAuth } from "@/lib/auth";
 
@@ -75,6 +75,18 @@ export function TopBar() {
                 >
                   <Server size={16} />
                   多端同步（即将开放）
+                </button>
+
+                {/* 团队 */}
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    router.push("/team");
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  <Team size={16} />
+                  团队
                 </button>
 
                 {/* 退出登录 */}

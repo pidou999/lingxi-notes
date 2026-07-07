@@ -8,6 +8,7 @@ import {
   saveSiteCookies,
   type SiteCookie,
 } from "@/lib/cookies";
+import { ProviderSection } from "@/components/providers/ProviderSection";
 
 export default function SettingsPage() {
   const [cookies, setCookies] = useState<SiteCookie[]>([]);
@@ -173,6 +174,9 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* ── 模型配置 ── */}
+      <ProviderSection />
     </div>
   );
 }

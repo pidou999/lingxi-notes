@@ -8,11 +8,8 @@ import {
   Bookmark,
   Ai,
   Tag,
-  Settings,
-  Team,
   Folder,
   ChevronLeft,
-  Cpu,
 } from "@ai-notes/icons";
 import { LingxiLogo } from "./LingxiLogo";
 
@@ -76,33 +73,6 @@ export function SidebarNav({
     [pathname]
   );
 
-  const bottomItems: SidebarItem[] = useMemo(
-    () => [
-      {
-        id: "team",
-        label: "团队",
-        icon: <Team size={20} />,
-        href: "/team",
-        active: pathname.startsWith("/team"),
-      },
-      {
-        id: "providers",
-        label: "模型配置",
-        icon: <Cpu size={20} />,
-        href: "/providers",
-        active: pathname.startsWith("/providers"),
-      },
-      {
-        id: "settings",
-        label: "设置",
-        icon: <Settings size={20} />,
-        href: "/settings",
-        active: pathname.startsWith("/settings"),
-      },
-    ],
-    [pathname]
-  );
-
   return (
     <div className="flex h-full flex-col">
       {/* Brand logo */}
@@ -116,14 +86,6 @@ export function SidebarNav({
         onItemClick={onItemClick}
         className="flex-1"
       />
-
-      <div className="border-t border-gray-200 dark:border-gray-700">
-        <Sidebar
-          items={bottomItems}
-          collapsed={collapsed}
-          onItemClick={onItemClick}
-        />
-      </div>
 
       <button
         type="button"
