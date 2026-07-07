@@ -4,7 +4,6 @@ import { useState, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { SidebarNav } from "./SidebarNav";
 import { TopBar } from "./TopBar";
-import { SyncPanel } from "@/components/sync/SyncPanel";
 import { useRequireAuth } from "@/lib/auth";
 import { Note, Bookmark, Ai, Settings } from "@ai-notes/icons";
 import type { SidebarItem } from "@ai-notes/ui-kit";
@@ -48,7 +47,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           onItemClick={handleNavClick}
         />
-        <SyncPanel />
       </aside>
 
       {/* Mobile bottom nav */}

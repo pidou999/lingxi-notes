@@ -1,6 +1,7 @@
 // API 客户端 — 封装对 Go 后端的 HTTP 调用
 
-const API_BASE = "";
+// 开发环境后端地址；生产环境通过环境变量覆盖
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8888";
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
