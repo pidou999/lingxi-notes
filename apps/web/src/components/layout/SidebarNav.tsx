@@ -10,6 +10,7 @@ import {
   Tag,
   Folder,
   ChevronLeft,
+  Trash2,
 } from "@ai-notes/icons";
 import { LingxiLogo } from "./LingxiLogo";
 
@@ -68,6 +69,13 @@ export function SidebarNav({
             href: "/settings",
           },
         ],
+      },
+      {
+        id: "trash",
+        label: "回收站",
+        icon: <Trash2 size={20} />,
+        href: "/trash",
+        active: pathname.startsWith("/trash"),
       },
     ],
     [pathname]

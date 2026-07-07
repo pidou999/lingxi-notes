@@ -42,6 +42,7 @@ func migrate(db *DB) error {
 		html TEXT NOT NULL DEFAULT '',
 		json TEXT NOT NULL DEFAULT '{}',
 		tags TEXT NOT NULL DEFAULT '[]',
+		deleted_at TEXT DEFAULT NULL,
 		created_at TEXT NOT NULL DEFAULT (datetime('now')),
 		updated_at TEXT NOT NULL DEFAULT (datetime('now')),
 		FOREIGN KEY (user_id) REFERENCES users(id)
@@ -63,10 +64,20 @@ func migrate(db *DB) error {
 	CREATE INDEX IF NOT EXISTS idx_notes_user ON notes(user_id);
 	CREATE INDEX IF NOT EXISTS idx_providers_user ON providers(user_id);
 	`
-	_, err := db.Exec(schema)
-	if err != nil {
+	if _, err := db.Exec(schema); err != nil {
 		return err
 	}
+
+	// 兼容旧表：检查并添加 deleted_at 列
+	if _, err := db.Exec("ALTER TABLE notes ADD COLUMN deleted_at TEXT DEFAULT NULL"); err != nil {
+		// 列已存在时忽略错误
+	}
+
+	// 清理过期回收站（超过30天）
+	if _, err := db.Exec("DELETE FROM notes WHERE deleted_at IS NOT NULL AND deleted_at < datetime('now', '-30 days')"); err != nil {
+		// 忽略
+	}
+
 	log.Println("数据库迁移完成")
 	return nil
 }

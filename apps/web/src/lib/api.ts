@@ -140,3 +140,25 @@ export function apiListNotesByTag(tag: string) {
 export function apiSearch(q: string) {
   return request<NoteData[]>("GET", `/api/v1/search?q=${encodeURIComponent(q)}`);
 }
+
+// ─── Trash ────────────────────────────────────────
+
+export interface TrashNoteData extends NoteData {
+  deletedAt: string;
+}
+
+export function apiListTrash() {
+  return request<TrashNoteData[]>("GET", "/api/v1/trash");
+}
+
+export function apiRestoreNote(id: string) {
+  return request<{ status: string }>("POST", `/api/v1/trash/${id}/restore`);
+}
+
+export function apiPermanentDelete(id: string) {
+  return request<{ status: string }>("DELETE", `/api/v1/trash/${id}`);
+}
+
+export function apiCleanTrash() {
+  return request<{ status: string; deleted: number }>("POST", "/api/v1/trash/clean");
+}

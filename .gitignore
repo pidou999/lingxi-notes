@@ -59,4 +59,7 @@ apps/desktop/src-tauri/target/
 
 # Generated
 public/uploads/
-apps/server/static/
+scripts/
+apps/web/out/
+apps/web/.next/
+*.tsbuildinfo

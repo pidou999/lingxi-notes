@@ -22,7 +22,7 @@ func listNotesHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		uid := userID(r)
 		rows, err := db.Query(
-			"SELECT id, title, html, json, tags, created_at, updated_at FROM notes WHERE user_id = ? ORDER BY updated_at DESC",
+			"SELECT id, title, html, json, tags, created_at, updated_at FROM notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
 			uid)
 		if err != nil {
 			http.Error(w, `{"error":"查询失败"}`, 500)
@@ -92,7 +92,7 @@ func getNoteHandler(db *DB) http.HandlerFunc {
 		id := chi.URLParam(r, "id")
 		var n Note
 		err := db.QueryRow(
-			"SELECT id, title, html, json, tags, created_at, updated_at FROM notes WHERE id = ? AND user_id = ?",
+			"SELECT id, title, html, json, tags, created_at, updated_at FROM notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
 			id, userID(r),
 		).Scan(&n.ID, &n.Title, &n.HTML, &n.JSON, &n.Tags, &n.CreatedAt, &n.UpdatedAt)
 		if err == sql.ErrNoRows {
@@ -124,7 +124,7 @@ func updateNoteHandler(db *DB) http.HandlerFunc {
 		// 读取当前值
 		var cur Note
 		err := db.QueryRow(
-			"SELECT id, title, html, json, tags FROM notes WHERE id = ? AND user_id = ?",
+			"SELECT id, title, html, json, tags FROM notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
 			id, userID(r),
 		).Scan(&cur.ID, &cur.Title, &cur.HTML, &cur.JSON, &cur.Tags)
 		if err == sql.ErrNoRows {
@@ -168,7 +168,8 @@ func updateNoteHandler(db *DB) http.HandlerFunc {
 func deleteNoteHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
-		res, err := db.Exec("DELETE FROM notes WHERE id = ? AND user_id = ?", id, userID(r))
+		// 软删除：设置 deleted_at
+		res, err := db.Exec("UPDATE notes SET deleted_at=? WHERE id=? AND user_id=?", now(), id, userID(r))
 		if err != nil {
 			http.Error(w, `{"error":"删除失败"}`, 500)
 			return

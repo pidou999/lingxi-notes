@@ -10,6 +10,7 @@ export interface Note {
   html: string;
   json: Record<string, unknown>;
   tags?: string[];
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

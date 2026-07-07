@@ -60,6 +60,12 @@ func main() {
 		r.Get("/api/v1/tags/{tag}", listNotesByTagHandler(db))
 
 		r.Get("/api/v1/search", searchHandler(db))
+
+		// 回收站
+		r.Get("/api/v1/trash", listTrashHandler(db))
+		r.Post("/api/v1/trash/{id}/restore", restoreNoteHandler(db))
+		r.Delete("/api/v1/trash/{id}", permanentDeleteHandler(db))
+		r.Post("/api/v1/trash/clean", cleanExpiredTrashHandler(db))
 	})
 
 	// 生产模式：嵌入静态文件

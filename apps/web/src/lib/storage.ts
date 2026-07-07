@@ -95,7 +95,7 @@ export function loginUser(email: string, _password: string): User | null {
 // ─── Notes ──────────────────────────────────────────
 
 export function getNotes(): Note[] {
-  return get<Note[]>("notes", []);
+  return get<Note[]>("notes", []).filter((n) => !n.deletedAt);
 }
 
 export function saveNotes(notes: Note[]): void {
@@ -103,7 +103,7 @@ export function saveNotes(notes: Note[]): void {
 }
 
 export function getNote(id: string): Note | undefined {
-  return getNotes().find((n) => n.id === id);
+  return get<Note[]>("notes", []).find((n) => n.id === id);
 }
 
 export function createNote(title: string): Note {
@@ -116,7 +116,7 @@ export function createNote(title: string): Note {
     createdAt: now,
     updatedAt: now,
   };
-  const notes = getNotes();
+  const notes = get<Note[]>("notes", []);
   notes.unshift(note);
   saveNotes(notes);
   syncCreateToApi(note);
@@ -127,7 +127,7 @@ export function updateNote(
   id: string,
   data: Partial<Pick<Note, "title" | "html" | "json" | "tags">>
 ): Note | undefined {
-  const notes = getNotes();
+  const notes = get<Note[]>("notes", []);
   const idx = notes.findIndex((n) => n.id === id);
   if (idx === -1) return undefined;
   notes[idx] = {
@@ -141,7 +141,40 @@ export function updateNote(
 }
 
 export function deleteNote(id: string): void {
-  const notes = getNotes().filter((n) => n.id !== id);
+  const notes = get<Note[]>("notes", []);
+  const idx = notes.findIndex((n) => n.id === id);
+  if (idx === -1) return;
+  notes[idx] = {
+    ...notes[idx],
+    deletedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  saveNotes(notes);
+  syncUpdateToApi(id, {}); // 后端负责软删除
+}
+
+// ─── Trash ──────────────────────────────────────────
+
+export function getTrashNotes(): Note[] {
+  return get<Note[]>("notes", []).filter((n) => n.deletedAt);
+}
+
+export function restoreNote(id: string): Note | undefined {
+  const notes = get<Note[]>("notes", []);
+  const idx = notes.findIndex((n) => n.id === id);
+  if (idx === -1) return undefined;
+  notes[idx] = {
+    ...notes[idx],
+    deletedAt: undefined,
+    updatedAt: new Date().toISOString(),
+  };
+  saveNotes(notes);
+  syncUpdateToApi(id, {});
+  return notes[idx];
+}
+
+export function permanentDeleteNote(id: string): void {
+  const notes = get<Note[]>("notes", []).filter((n) => n.id !== id);
   saveNotes(notes);
   syncDeleteToApi(id);
 }

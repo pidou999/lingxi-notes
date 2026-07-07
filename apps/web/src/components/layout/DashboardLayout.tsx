@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { SidebarNav } from "./SidebarNav";
 import { TopBar } from "./TopBar";
 import { useRequireAuth } from "@/lib/auth";
-import { Note, Bookmark, Ai, Settings } from "@ai-notes/icons";
+import { Note, Bookmark, Ai, Settings, Trash2 } from "@ai-notes/icons";
 import type { SidebarItem } from "@ai-notes/ui-kit";
 
 export interface DashboardLayoutProps {
@@ -61,6 +61,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           href="/bookmarks"
         />
         <MobileNavItem icon={<Ai size={20} />} label="AI" href="/ai" />
+        <MobileNavItem icon={<Trash2 size={20} />} label="回收站" href="/trash" />
         <MobileNavItem
           icon={<Settings size={20} />}
           label="设置"

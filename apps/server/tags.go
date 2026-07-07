@@ -11,8 +11,8 @@ func listTagsHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		uid := userID(r)
 
-		// 查询当前用户所有笔记的 tags 字段
-		rows, err := db.Query("SELECT tags FROM notes WHERE user_id = ?", uid)
+		// 查询当前用户所有未删除笔记的 tags 字段
+		rows, err := db.Query("SELECT tags FROM notes WHERE user_id = ? AND deleted_at IS NULL", uid)
 		if err != nil {
 			http.Error(w, `{"error":"查询失败"}`, 500)
 			return
@@ -55,7 +55,7 @@ func listNotesByTagHandler(db *DB) http.HandlerFunc {
 		uid := userID(r)
 
 		rows, err := db.Query(
-			"SELECT id, title, html, json, tags, created_at, updated_at FROM notes WHERE user_id = ? ORDER BY updated_at DESC",
+			"SELECT id, title, html, json, tags, created_at, updated_at FROM notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
 			uid)
 		if err != nil {
 			http.Error(w, `{"error":"查询失败"}`, 500)
