@@ -11,6 +11,9 @@ import {
   ExternalLink,
   Folder,
   XCircle,
+  Pin,
+  Star,
+  Lock,
 } from "@ai-notes/icons";
 import { getNotes, createNote, deleteNote, updateNote, togglePinned, toggleStarred, getFolders } from "@/lib/storage";
 import type { Note } from "@/lib/types";
@@ -242,7 +245,7 @@ export default function NotesPage() {
                         onClick={(e) => handleTogglePin(note.id, e)}
                         className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                       >
-                        <span>{note.pinned ? "📌" : "📌"}</span>
+                        <Pin size={14} />
                         {note.pinned ? "取消置顶" : "置顶"}
                       </button>
                       {/* 加星 */}
@@ -250,7 +253,7 @@ export default function NotesPage() {
                         onClick={(e) => handleToggleStar(note.id, e)}
                         className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                       >
-                        <span>{note.starred ? "⭐" : "☆"}</span>
+                        <Star size={14} />
                         {note.starred ? "取消加星" : "加星"}
                       </button>
                       {/* 分享 */}
@@ -274,7 +277,7 @@ export default function NotesPage() {
                         onClick={(e) => { e.stopPropagation(); setPasswordDialog(note.id); setMenuOpen(null); }}
                         className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                       >
-                        <span>🔒</span>
+                        <Lock size={14} />
                         {note.password ? "修改密码" : "加密"}
                       </button>
                       {/* 分隔线 */}
@@ -325,10 +328,10 @@ export default function NotesPage() {
                     minute: "2-digit",
                   })}
                 </span>
-                <span className="flex items-center gap-1">
-                  {note.pinned && <span title="已置顶">📌</span>}
-                  {note.starred && <span title="已加星">⭐</span>}
-                  {note.password && <span title="已加密">🔒</span>}
+                <span className="flex items-center gap-1.5">
+                  {note.pinned && <Pin size={12} className="text-gray-400" title="已置顶" />}
+                  {note.starred && <Star size={12} className="text-gray-400" title="已加星" />}
+                  {note.password && <Lock size={12} className="text-gray-400" title="已加密" />}
                 </span>
               </p>
             </div>

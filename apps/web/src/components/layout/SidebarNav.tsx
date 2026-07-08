@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   Trash2,
   Plus,
-  Close,
+  Star,
+  MoreHorizontal,
 } from "@ai-notes/icons";
 import { LingxiLogo } from "./LingxiLogo";
 import { getFolders, renameFolder, deleteFolder, createNote, updateNote } from "@/lib/storage";
@@ -89,6 +90,9 @@ export function SidebarNav({
     refreshFolders();
   };
 
+  // 文件夹内联菜单
+  const [folderMenu, setFolderMenu] = useState<string | null>(null);
+
   const mainItems: SidebarItem[] = [
     {
       id: "notes",
@@ -96,6 +100,13 @@ export function SidebarNav({
       icon: <Note size={20} />,
       href: "/notes",
       active: pathname.startsWith("/notes") && !pathname.includes("starred"),
+    },
+    {
+      id: "starred",
+      label: "星标",
+      icon: <Star size={20} />,
+      href: "/starred",
+      active: pathname.startsWith("/starred"),
     },
     {
       id: "collections",
@@ -115,37 +126,42 @@ export function SidebarNav({
       id: "tags",
       label: "标签",
       icon: <Tag size={20} />,
-      href: "/collections",
-      active: pathname.startsWith("/collections"),
-    },
-    {
-      id: "starred",
-      label: "星标",
-      icon: <span className="text-base">⭐</span>,
-      href: "/starred",
-      active: pathname.startsWith("/starred"),
-    },
-    {
-      id: "trash",
-      label: "回收站",
-      icon: <Trash2 size={20} />,
-      href: "/trash",
-      active: pathname.startsWith("/trash"),
+      href: "/tags",
+      active: pathname.startsWith("/tags"),
     },
   ];
 
+  // ── 折叠态 ──────────────────────────────────
   if (collapsed) {
     return (
       <div className="flex h-full flex-col">
         <div className="px-4 pt-4 pb-2">
           <LingxiLogo collapsed={true} />
         </div>
+
+        {/* 主菜单（侧边栏组件） */}
         <Sidebar
           items={mainItems}
           collapsed={true}
           onItemClick={(item) => item.href && navTo(item.href)}
           className="flex-1"
         />
+
+        {/* 回收站 */}
+        <button
+          type="button"
+          onClick={() => navTo("/trash")}
+          className={`flex items-center justify-center p-3 transition-colors ${
+            pathname.startsWith("/trash")
+              ? "text-brand-600 dark:text-brand-400"
+              : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          }`}
+          aria-label="回收站"
+        >
+          <Trash2 size={20} />
+        </button>
+
+        {/* 折叠按钮 */}
         <button
           type="button"
           onClick={onToggleCollapse}
@@ -158,13 +174,14 @@ export function SidebarNav({
     );
   }
 
+  // ── 展开态 ──────────────────────────────────
   return (
     <div className="flex h-full flex-col">
       <div className="px-4 pt-4 pb-2">
         <LingxiLogo collapsed={false} />
       </div>
 
-      {/* 主导航 */}
+      {/* 主菜单 */}
       <Sidebar
         items={mainItems}
         collapsed={false}
@@ -172,8 +189,21 @@ export function SidebarNav({
         className="flex-shrink-0"
       />
 
-      {/* 文件夹区域 */}
-      <div className="mt-2 border-t border-gray-100 px-3 pt-2 dark:border-gray-800">
+      {/* 回收站（在主菜单下方，无横线） */}
+      <button
+        onClick={() => navTo("/trash")}
+        className={`mx-2 flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+          pathname.startsWith("/trash")
+            ? "bg-brand-50 font-medium text-brand-600 dark:bg-brand-900/30 dark:text-brand-400"
+            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+        }`}
+      >
+        <Trash2 size={20} />
+        <span>回收站</span>
+      </button>
+
+      {/* 文件夹区域（无 border-t） */}
+      <div className="mx-2 mt-2">
         <button
           onClick={() => setFolderOpen(!folderOpen)}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
@@ -194,48 +224,85 @@ export function SidebarNav({
         {folderOpen && (
           <div className="ml-2 mt-1 space-y-0.5">
             {folders.map((name) => (
-              <div
-                key={name}
-                className="group flex items-center rounded-lg px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-              >
+              <div key={name} className="group relative flex items-center">
                 {renaming === name ? (
-                  <input
-                    type="text"
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onBlur={() => handleRename(name)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleRename(name);
-                      if (e.key === "Escape") setRenaming(null);
-                    }}
-                    className="flex-1 rounded border border-brand-500 bg-white px-2 py-0.5 text-sm text-gray-900 outline-none dark:bg-gray-800 dark:text-gray-100"
-                    autoFocus
-                    onClick={(e) => e.stopPropagation()}
-                  />
+                  <div className="flex w-full items-center gap-1 px-3 py-1.5">
+                    <input
+                      type="text"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      className="flex-1 rounded border border-gray-300 bg-white px-2 py-0.5 text-sm text-gray-900 outline-none focus:border-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleRename(name);
+                        if (e.key === "Escape") setRenaming(null);
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => handleRename(name)}
+                      className="rounded px-1.5 py-0.5 text-xs text-brand-600 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
+                    >
+                      确定
+                    </button>
+                    <button
+                      onClick={() => setRenaming(null)}
+                      className="rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      取消
+                    </button>
+                  </div>
                 ) : (
                   <>
-                    <Folder size={14} className="mr-2 shrink-0 text-gray-400" />
                     <button
                       onClick={() => navTo(`/notes?folder=${encodeURIComponent(name)}`)}
-                      className="flex-1 text-left"
+                      className="flex flex-1 items-center rounded-lg px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                     >
-                      {name}
+                      <Folder size={14} className="mr-2 shrink-0 text-gray-400" />
+                      <span className="flex-1 text-left">{name}</span>
                     </button>
-                    <div className="hidden items-center gap-0.5 group-hover:flex">
+
+                    {/* 三点菜单 */}
+                    <div className="relative">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setRenaming(name); setRenameValue(name); }}
-                        className="rounded p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        title="重命名"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFolderMenu(folderMenu === name ? null : name);
+                        }}
+                        className="rounded-lg p-1 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-600 group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
                       >
-                        ✏️
+                        <MoreHorizontal size={14} />
                       </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteFolder(name); }}
-                        className="rounded p-0.5 text-gray-400 hover:text-red-500"
-                        title="删除"
-                      >
-                        <Close size={12} />
-                      </button>
+                      {folderMenu === name && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setFolderMenu(null)}
+                          />
+                          <div className="absolute right-0 z-20 mt-1 min-w-[100px] overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRenaming(name);
+                                setRenameValue(name);
+                                setFolderMenu(null);
+                              }}
+                              className="flex w-full items-center px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+                            >
+                              重命名
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFolderMenu(null);
+                                handleDeleteFolder(name);
+                              }}
+                              className="flex w-full items-center px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                            >
+                              删除
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </>
                 )}
@@ -262,6 +329,12 @@ export function SidebarNav({
                   className="rounded px-2 py-1 text-xs text-brand-600 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
                 >
                   确定
+                </button>
+                <button
+                  onClick={() => { setShowNewFolder(false); setNewFolderInput(""); }}
+                  className="rounded px-1.5 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  取消
                 </button>
               </div>
             )}

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@ai-notes/ui-kit";
-import { ArrowLeft, Trash2, Ai } from "@ai-notes/icons";
+import { ArrowLeft, Trash2, Ai, Pin, Lock, Star } from "@ai-notes/icons";
 import { TipTapEditor, type TipTapEditorHandle } from "@/components/editor/TipTapEditor";
 import { TagInput } from "@/components/tags/TagInput";
 import { ChatPanel } from "@/components/chat/ChatPanel";
@@ -161,10 +161,10 @@ export default function NoteEditorPage() {
         />
 
         {/* 状态指示器 */}
-        <div className="flex items-center gap-1 text-base">
-          {note.pinned && <span title="已置顶">📌</span>}
-          {note.starred && <span title="已加星">⭐</span>}
-          {note.password && <span title="已加密">🔒</span>}
+        <div className="flex items-center gap-1.5 text-gray-400">
+          {note.pinned && <Pin size={14} title="已置顶" />}
+          {note.starred && <Star size={14} title="已加星" />}
+          {note.password && <Lock size={14} title="已加密" />}
         </div>
 
         <Button

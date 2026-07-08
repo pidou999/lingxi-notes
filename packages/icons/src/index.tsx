@@ -30,5 +30,8 @@ export { EyeOff } from "./EyeOff";
 export { Server } from "./Server";
 export { Cpu } from "./Cpu";
 export { RefreshCw } from "./RefreshCw";
+export { Star } from "./Star";
+export { Pin } from "./Pin";
+export { Lock } from "./Lock";
 
 export type { IconProps } from "./types";

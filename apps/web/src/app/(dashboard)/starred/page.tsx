@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@ai-notes/ui-kit";
-import { Note as NoteIcon, Folder } from "@ai-notes/icons";
+import { Note as NoteIcon, Folder, Star, Pin } from "@ai-notes/icons";
 import { getStarredNotes, toggleStarred } from "@/lib/storage";
 import type { Note } from "@/lib/types";
 
@@ -29,8 +29,9 @@ export default function StarredPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
+          <Star size={24} className="text-gray-500 dark:text-gray-400" />
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            ⭐ 星标
+            星标
           </h1>
           {notes.length > 0 && (
             <span className="text-sm text-gray-400 dark:text-gray-500">
@@ -43,7 +44,7 @@ export default function StarredPage() {
       {notes.length === 0 ? (
         <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-gray-300 p-16 dark:border-gray-700">
           <div className="text-center">
-            <span className="text-5xl">⭐</span>
+            <Star size={48} className="mx-auto text-gray-300 dark:text-gray-600" />
             <p className="mt-4 text-gray-500 dark:text-gray-400">
               还没有加星的笔记，在笔记菜单中点击「加星」即可标记
             </p>
@@ -63,10 +64,10 @@ export default function StarredPage() {
                 </h3>
                 <button
                   onClick={(e) => handleUnstar(note.id, e)}
-                  className="shrink-0 rounded-lg p-1 text-yellow-500 opacity-0 transition-opacity hover:bg-yellow-50 group-hover:opacity-100 dark:hover:bg-yellow-900/20"
+                  className="shrink-0 rounded-lg p-1 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-600 group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
                   title="取消加星"
                 >
-                  ⭐
+                  <Star size={14} />
                 </button>
               </div>
 
@@ -107,7 +108,7 @@ export default function StarredPage() {
                   })}
                 </span>
                 <span className="flex items-center gap-1">
-                  {note.pinned && <span title="已置顶">📌</span>}
+                  {note.pinned && <Pin size={12} className="text-gray-400" title="已置顶" />}
                 </span>
               </p>
             </div>
