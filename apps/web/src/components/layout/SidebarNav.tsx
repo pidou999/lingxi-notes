@@ -64,11 +64,14 @@ export function SidebarNav({
   const handleCreateFolder = () => {
     const name = newFolderInput.trim();
     if (!name) return;
+    // 如果是创建子文件夹，拼接父路径
+    const fullName = subfolderParent ? `${subfolderParent}/${name}` : name;
     const note = createNote("");
-    updateNote(note.id, { folder: name } as any);
+    updateNote(note.id, { folder: fullName } as any);
     refreshFolders();
     setShowNewFolder(false);
     setNewFolderInput("");
+    setSubfolderParent(null);
   };
 
   // 重命名
@@ -78,7 +81,18 @@ export function SidebarNav({
       setRenaming(null);
       return;
     }
-    renameFolder(oldName, newName);
+    // 如果是子文件夹，保留父路径前缀
+    const fullNewName = isSubfolder(oldName)
+      ? oldName.split("/").slice(0, -1).concat(newName).join("/")
+      : newName;
+    renameFolder(oldName, fullNewName);
+    // 同时更新子文件夹的路径（父文件夹改名时）
+    if (!isSubfolder(oldName)) {
+      getChildrenOf(oldName).forEach((child) => {
+        const childNewName = child.replace(oldName, fullNewName);
+        renameFolder(child, childNewName);
+      });
+    }
     refreshFolders();
     setRenaming(null);
   };
@@ -92,6 +106,124 @@ export function SidebarNav({
 
   // 文件夹内联菜单
   const [folderMenu, setFolderMenu] = useState<string | null>(null);
+  // 记录从哪个父文件夹点击的"新建子文件夹"，null 表示根层级
+  const [subfolderParent, setSubfolderParent] = useState<string | null>(null);
+
+  // 是否为子文件夹（含 / 分隔符）
+  const isSubfolder = (name: string) => name.includes("/");
+  // 获取父文件夹名
+  const getParent = (name: string) => isSubfolder(name) ? name.split("/").slice(0, -1).join("/") : "";
+  // 获取本层名称（去掉父路径前缀）
+  const getBaseName = (name: string) => isSubfolder(name) ? name.split("/").pop()! : name;
+
+  // 按层级组织文件夹：root → child
+  const rootFolders = folders.filter((f) => !isSubfolder(f));
+  const childFolders = folders.filter((f) => isSubfolder(f));
+  const getChildrenOf = (parent: string) =>
+    childFolders.filter((f) => f.startsWith(parent + "/")).sort();
+
+  // ── 渲染单个文件夹条目 ──────────────────────
+  const RenderFolder = ({ name, displayName }: { name: string; displayName: string }) => (
+    <div className="group relative flex items-center">
+      {renaming === name ? (
+        <div className="flex w-full items-center gap-1 px-3 py-1.5">
+          <input
+            type="text"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            className="flex-1 rounded border border-gray-300 bg-white px-2 py-0.5 text-sm text-gray-900 outline-none focus:border-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleRename(name);
+              if (e.key === "Escape") setRenaming(null);
+            }}
+            autoFocus
+          />
+          <button
+            onClick={() => handleRename(name)}
+            className="rounded px-1.5 py-0.5 text-xs text-brand-600 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
+          >
+            确定
+          </button>
+          <button
+            onClick={() => setRenaming(null)}
+            className="rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            取消
+          </button>
+        </div>
+      ) : (
+        <>
+          <button
+            onClick={() => navTo(`/notes?folder=${encodeURIComponent(name)}`)}
+            className="flex flex-1 items-center rounded-lg px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          >
+            <Folder size={14} className="mr-2 shrink-0 text-gray-400" />
+            <span className="flex-1 text-left">{displayName}</span>
+          </button>
+
+          {/* 三点菜单 */}
+          <div className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setFolderMenu(folderMenu === name ? null : name);
+              }}
+              className="rounded-lg p-1 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-600 group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+            >
+              <MoreHorizontal size={14} />
+            </button>
+            {folderMenu === name && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setFolderMenu(null)} />
+                <div className="absolute right-0 z-20 mt-1 min-w-[120px] overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  <button
+                    onClick={() => { setRenaming(name); setRenameValue(displayName); setFolderMenu(null); }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    <Folder size={14} />
+                    重命名
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFolderMenu(null);
+                      const note = createNote("");
+                      updateNote(note.id, { folder: name } as any);
+                      navTo(`/edit?id=${note.id}`);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    <Note size={14} />
+                    新建笔记
+                  </button>
+                  {!isSubfolder(name) && (
+                    <button
+                      onClick={() => {
+                        setFolderMenu(null);
+                        setSubfolderParent(name);
+                        setShowNewFolder(true);
+                        setNewFolderInput("");
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+                    >
+                      新建子文件夹
+                    </button>
+                  )}
+                  <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+                  <button
+                    onClick={() => { setFolderMenu(null); handleDeleteFolder(name); }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                  >
+                    <Trash2 size={14} />
+                    删除
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
 
   const mainItems: SidebarItem[] = [
     {
@@ -210,116 +342,17 @@ export function SidebarNav({
 
         {folderOpen && (
           <div className="ml-2 mt-1 space-y-0.5">
-            {folders.map((name) => (
-              <div key={name} className="group relative flex items-center">
-                {renaming === name ? (
-                  <div className="flex w-full items-center gap-1 px-3 py-1.5">
-                    <input
-                      type="text"
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      className="flex-1 rounded border border-gray-300 bg-white px-2 py-0.5 text-sm text-gray-900 outline-none focus:border-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleRename(name);
-                        if (e.key === "Escape") setRenaming(null);
-                      }}
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => handleRename(name)}
-                      className="rounded px-1.5 py-0.5 text-xs text-brand-600 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
-                    >
-                      确定
-                    </button>
-                    <button
-                      onClick={() => setRenaming(null)}
-                      className="rounded px-1.5 py-0.5 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    >
-                      取消
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => navTo(`/notes?folder=${encodeURIComponent(name)}`)}
-                      className="flex flex-1 items-center rounded-lg px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                    >
-                      <Folder size={14} className="mr-2 shrink-0 text-gray-400" />
-                      <span className="flex-1 text-left">{name}</span>
-                    </button>
+            {rootFolders.map((rootName) => (
+              <div key={rootName}>
+                {/* ── 根文件夹 ── */}
+                <RenderFolder name={rootName} displayName={rootName} />
 
-                    {/* 三点菜单 */}
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFolderMenu(folderMenu === name ? null : name);
-                        }}
-                        className="rounded-lg p-1 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-600 group-hover:opacity-100 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-                      >
-                        <MoreHorizontal size={14} />
-                      </button>
-                      {folderMenu === name && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-10"
-                            onClick={() => setFolderMenu(null)}
-                          />
-                          <div className="absolute right-0 z-20 mt-1 min-w-[120px] overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRenaming(name);
-                                setRenameValue(name);
-                                setFolderMenu(null);
-                              }}
-                              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-                            >
-                              <Folder size={14} />
-                              重命名
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setFolderMenu(null);
-                                const note = createNote("");
-                                updateNote(note.id, { folder: name } as any);
-                                navTo(`/edit?id=${note.id}`);
-                              }}
-                              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-                            >
-                              <Note size={14} />
-                              新建笔记
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setFolderMenu(null);
-                                setShowNewFolder(true);
-                                setNewFolderInput("");
-                              }}
-                              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-                            >
-                              新建子文件夹
-                            </button>
-                            <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setFolderMenu(null);
-                                handleDeleteFolder(name);
-                              }}
-                              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                            >
-                              <Trash2 size={14} />
-                              删除
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </>
-                )}
+                {/* ── 子文件夹 ── */}
+                {getChildrenOf(rootName).map((childName) => (
+                  <div key={childName} className="ml-5 border-l-2 border-gray-100 pl-3 dark:border-gray-700">
+                    <RenderFolder name={childName} displayName={getBaseName(childName)} />
+                  </div>
+                ))}
               </div>
             ))}
 
@@ -330,11 +363,11 @@ export function SidebarNav({
                   type="text"
                   value={newFolderInput}
                   onChange={(e) => setNewFolderInput(e.target.value)}
-                  placeholder="文件夹名称"
+                  placeholder={subfolderParent ? `${subfolderParent}/子文件夹名称` : "文件夹名称"}
                   className="flex-1 rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleCreateFolder();
-                    if (e.key === "Escape") { setShowNewFolder(false); setNewFolderInput(""); }
+                    if (e.key === "Escape") { setShowNewFolder(false); setNewFolderInput(""); setSubfolderParent(null); }
                   }}
                   autoFocus
                 />
@@ -345,7 +378,7 @@ export function SidebarNav({
                   确定
                 </button>
                 <button
-                  onClick={() => { setShowNewFolder(false); setNewFolderInput(""); }}
+                  onClick={() => { setShowNewFolder(false); setNewFolderInput(""); setSubfolderParent(null); }}
                   className="rounded px-1.5 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   取消
@@ -353,9 +386,10 @@ export function SidebarNav({
               </div>
             )}
 
-            {/* 新建按钮 */}
+            {/* 新建文件夹按钮（根层级） */}
             <button
               onClick={() => {
+                setSubfolderParent(null);
                 setShowNewFolder(true);
                 setNewFolderInput("");
               }}
