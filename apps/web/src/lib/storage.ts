@@ -189,13 +189,82 @@ export function permanentDeleteNote(id: string): void {
 
 // ─── Folders ──────────────────────────────────────────
 
+const FOLDERS_KEY = "folders";
+
+/** 获取手动保存的文件夹列表（独立于笔记） */
+function getSavedFolders(): string[] {
+  return get<string[]>(FOLDERS_KEY, []);
+}
+
+function setSavedFolders(list: string[]): void {
+  set(FOLDERS_KEY, list);
+}
+
+/** 将所有文件夹合并返回（手动保存的 + 笔记中存在的） */
 export function getFolders(): string[] {
   const notes = get<Note[]>("notes", []).filter((n) => !n.deletedAt);
   const folders = new Set<string>();
+  // 从笔记中收集
   for (const n of notes) {
     if (n.folder) folders.add(n.folder);
   }
+  // 合并手动保存的
+  for (const f of getSavedFolders()) {
+    folders.add(f);
+  }
   return Array.from(folders).sort();
+}
+
+/** 创建文件夹（不创建笔记） */
+export function createFolder(name: string): void {
+  if (!name) return;
+  const list = getSavedFolders();
+  if (!list.includes(name)) {
+    list.push(name);
+    setSavedFolders(list);
+  }
+}
+
+/** 重命名文件夹（更新笔记 + 手动列表） */
+export function renameFolder(oldName: string, newName: string): void {
+  if (!oldName || !newName || oldName === newName) return;
+  // 更新笔记
+  const notes = get<Note[]>("notes", []);
+  let changed = false;
+  for (const note of notes) {
+    if (note.folder === oldName) {
+      note.folder = newName;
+      note.updatedAt = new Date().toISOString();
+      changed = true;
+    }
+  }
+  if (changed) saveNotes(notes);
+  // 更新手动列表
+  const saved = getSavedFolders();
+  const idx = saved.indexOf(oldName);
+  if (idx !== -1) {
+    saved[idx] = newName;
+    setSavedFolders(saved);
+  }
+}
+
+/** 删除文件夹（清除笔记中的 + 手动列表） */
+export function deleteFolder(name: string): void {
+  if (!name) return;
+  // 清除笔记
+  const notes = get<Note[]>("notes", []);
+  let changed = false;
+  for (const note of notes) {
+    if (note.folder === name) {
+      note.folder = undefined;
+      note.updatedAt = new Date().toISOString();
+      changed = true;
+    }
+  }
+  if (changed) saveNotes(notes);
+  // 从手动列表中移除
+  const saved = getSavedFolders().filter((f) => f !== name);
+  setSavedFolders(saved);
 }
 
 export function getNotesByFolder(folder: string): Note[] {
@@ -216,34 +285,4 @@ export function toggleStarred(id: string): Note | undefined {
   const note = getNote(id);
   if (!note) return undefined;
   return updateNote(id, { starred: !note.starred });
-}
-
-/** 重命名文件夹（更新所有笔记中的 folder 字段） */
-export function renameFolder(oldName: string, newName: string): void {
-  if (!oldName || !newName || oldName === newName) return;
-  const notes = get<Note[]>("notes", []);
-  let changed = false;
-  for (const note of notes) {
-    if (note.folder === oldName) {
-      note.folder = newName;
-      note.updatedAt = new Date().toISOString();
-      changed = true;
-    }
-  }
-  if (changed) saveNotes(notes);
-}
-
-/** 删除文件夹（清除所有笔记中的该 folder 字段） */
-export function deleteFolder(name: string): void {
-  if (!name) return;
-  const notes = get<Note[]>("notes", []);
-  let changed = false;
-  for (const note of notes) {
-    if (note.folder === name) {
-      note.folder = undefined;
-      note.updatedAt = new Date().toISOString();
-      changed = true;
-    }
-  }
-  if (changed) saveNotes(notes);
 }

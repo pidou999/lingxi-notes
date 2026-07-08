@@ -16,7 +16,7 @@ import {
   MoreHorizontal,
 } from "@ai-notes/icons";
 import { LingxiLogo } from "./LingxiLogo";
-import { getFolders, renameFolder, deleteFolder, createNote, updateNote } from "@/lib/storage";
+import { getFolders, renameFolder, deleteFolder, createFolder, createNote, updateNote } from "@/lib/storage";
 
 export interface SidebarNavProps {
   collapsed: boolean;
@@ -58,6 +58,10 @@ export function SidebarNav({
   const navTo = (href: string) => {
     router.push(href);
     onItemClick?.(null as any);
+    // 关闭新建文件夹输入框
+    setShowNewFolder(false);
+    setNewFolderInput("");
+    setSubfolderParent(null);
   };
 
   // 新建文件夹
@@ -66,8 +70,7 @@ export function SidebarNav({
     if (!name) return;
     // 如果是创建子文件夹，拼接父路径
     const fullName = subfolderParent ? `${subfolderParent}/${name}` : name;
-    const note = createNote("");
-    updateNote(note.id, { folder: fullName } as any);
+    createFolder(fullName);
     refreshFolders();
     setShowNewFolder(false);
     setNewFolderInput("");
