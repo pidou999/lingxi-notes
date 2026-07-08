@@ -286,3 +286,31 @@ export function toggleStarred(id: string): Note | undefined {
   if (!note) return undefined;
   return updateNote(id, { starred: !note.starred });
 }
+
+// ─── Tags ──────────────────────────────────────────
+
+export interface TagWithCount {
+  name: string;
+  count: number;
+}
+
+/** 获取所有标签及其笔记数量 */
+export function getAllTags(): TagWithCount[] {
+  const notes = getNotes();
+  const map = new Map<string, number>();
+  for (const n of notes) {
+    if (n.tags && Array.isArray(n.tags)) {
+      for (const t of n.tags) {
+        map.set(t, (map.get(t) || 0) + 1);
+      }
+    }
+  }
+  return Array.from(map.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+
+/** 获取包含指定标签的笔记 */
+export function getNotesByTag(tag: string): Note[] {
+  return getNotes().filter((n) => n.tags && n.tags.includes(tag));
+}
