@@ -57,6 +57,9 @@ apps/desktop/src-tauri/target/
 *.seed
 *.pid.lock
 
+# Backups
+ai-notes.backup-*/
+
 # Generated
 public/uploads/
 scripts/
