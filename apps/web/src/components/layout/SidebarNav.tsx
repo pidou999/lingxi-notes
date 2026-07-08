@@ -189,19 +189,6 @@ export function SidebarNav({
         className="flex-shrink-0"
       />
 
-      {/* 回收站（在主菜单下方，无横线） */}
-      <button
-        onClick={() => navTo("/trash")}
-        className={`mx-2 flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-          pathname.startsWith("/trash")
-            ? "bg-brand-50 font-medium text-brand-600 dark:bg-brand-900/30 dark:text-brand-400"
-            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
-        }`}
-      >
-        <Trash2 size={20} />
-        <span>回收站</span>
-      </button>
-
       {/* 文件夹区域（无 border-t） */}
       <div className="mx-2 mt-2">
         <button
@@ -278,7 +265,7 @@ export function SidebarNav({
                             className="fixed inset-0 z-10"
                             onClick={() => setFolderMenu(null)}
                           />
-                          <div className="absolute right-0 z-20 mt-1 min-w-[100px] overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                          <div className="absolute right-0 z-20 mt-1 min-w-[120px] overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -286,18 +273,46 @@ export function SidebarNav({
                                 setRenameValue(name);
                                 setFolderMenu(null);
                               }}
-                              className="flex w-full items-center px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+                              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
                             >
+                              <Folder size={14} />
                               重命名
                             </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setFolderMenu(null);
+                                const note = createNote("");
+                                updateNote(note.id, { folder: name } as any);
+                                navTo(`/edit?id=${note.id}`);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+                            >
+                              <Note size={14} />
+                              新建笔记
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFolderMenu(null);
+                                setShowNewFolder(true);
+                                setNewFolderInput("");
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+                            >
+                              <Plus size={14} />
+                              新建子文件夹
+                            </button>
+                            <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFolderMenu(null);
                                 handleDeleteFolder(name);
                               }}
-                              className="flex w-full items-center px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                              className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                             >
+                              <Trash2 size={14} />
                               删除
                             </button>
                           </div>
@@ -353,6 +368,19 @@ export function SidebarNav({
           </div>
         )}
       </div>
+
+      {/* 回收站（在文件夹下方） */}
+      <button
+        onClick={() => navTo("/trash")}
+        className={`mx-2 flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+          pathname.startsWith("/trash")
+            ? "bg-brand-50 font-medium text-brand-600 dark:bg-brand-900/30 dark:text-brand-400"
+            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+        }`}
+      >
+        <Trash2 size={20} />
+        <span>回收站</span>
+      </button>
 
       <div className="flex-1" />
 
