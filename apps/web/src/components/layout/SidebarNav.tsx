@@ -300,7 +300,6 @@ export function SidebarNav({
                               }}
                               className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
                             >
-                              <Plus size={14} />
                               新建子文件夹
                             </button>
                             <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
