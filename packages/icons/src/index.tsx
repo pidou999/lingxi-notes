@@ -33,5 +33,12 @@ export { RefreshCw } from "./RefreshCw";
 export { Star } from "./Star";
 export { Pin } from "./Pin";
 export { Lock } from "./Lock";
+export { Send } from "./Send";
+export { Save } from "./Save";
+export { Check } from "./Check";
+export { Sparkles } from "./Sparkles";
+export { FileText } from "./FileText";
+export { Edit } from "./Edit";
+export { Square } from "./Square";
 
 export type { IconProps } from "./types";

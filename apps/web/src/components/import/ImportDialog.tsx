@@ -73,6 +73,7 @@ export function ImportDialog() {
     setImporting(false);
     setDone(true);
     setItems([]);
+    window.dispatchEvent(new CustomEvent("ai-notes:note-changed"));
     router.refresh();
   };
 

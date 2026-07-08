@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Folder, Plus, MoreHorizontal, Trash2, Note, ChevronLeft } from "@ai-notes/icons";
-import { getFolders, renameFolder, deleteFolder, createFolder, createNote, updateNote } from "@/lib/storage";
+import { getFolders, renameFolder, deleteFolder, createFolder, createNote, updateNote, moveFolder } from "@/lib/storage";
 
 export interface FolderSectionProps {
   /** 导航回调，SidebarNav 用此来重置自己的状态 */
@@ -21,6 +21,9 @@ export function FolderSection({ onNavigate }: FolderSectionProps) {
   const [renameValue, setRenameValue] = useState("");
   const [folderMenu, setFolderMenu] = useState<string | null>(null);
   const [subfolderParent, setSubfolderParent] = useState<string | null>(null);
+  const [movingFolder, setMovingFolder] = useState<string | null>(null);
+  const [moveExpanded, setMoveExpanded] = useState<Record<string, boolean>>({});
+  const [folderExpanded, setFolderExpanded] = useState<Record<string, boolean>>({});
 
   const refreshFolders = useCallback(() => setFolders(getFolders()), []);
 
@@ -32,6 +35,13 @@ export function FolderSection({ onNavigate }: FolderSectionProps) {
     const handler = () => refreshFolders();
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
+  }, [refreshFolders]);
+
+  // 监听自定义事件：笔记保存后刷新文件夹列表
+  useEffect(() => {
+    const handler = () => refreshFolders();
+    window.addEventListener("ai-notes:folder-changed", handler);
+    return () => window.removeEventListener("ai-notes:folder-changed", handler);
   }, [refreshFolders]);
 
   // 导航 — 关闭输入框状态后回调
@@ -77,6 +87,19 @@ export function FolderSection({ onNavigate }: FolderSectionProps) {
     if (!confirm(`确定删除文件夹「${name}」？笔记不会被删除，但会移出此文件夹。`)) return;
     deleteFolder(name);
     refreshFolders();
+    // 判断当前页面是否在被删文件夹内，自动跳转
+    const params = new URLSearchParams(window.location.search);
+    const currentFolder = params.get("folder") || "";
+    if (currentFolder === name || currentFolder.startsWith(name + "/")) {
+      // 当前在被删文件夹或其子文件夹内 → 跳到笔记首页
+      navigateTo("/notes");
+    }
+  };
+
+  const handleMoveFolder = (source: string, targetParent: string) => {
+    moveFolder(source, targetParent);
+    refreshFolders();
+    setMovingFolder(null);
   };
 
   // ── 工具 ──────────────────────────────────────
@@ -84,6 +107,12 @@ export function FolderSection({ onNavigate }: FolderSectionProps) {
   const getBaseName = (name: string) => isSubfolder(name) ? name.split("/").pop()! : name;
   const getChildrenOf = (parent: string) =>
     folders.filter((f) => f.startsWith(parent + "/")).sort();
+  const getDirectChildren = (parent: string) =>
+    folders.filter((f) => {
+      if (!f.startsWith(parent + "/")) return false;
+      const rest = f.slice(parent.length + 1);
+      return !rest.includes("/"); // 只取直接子文件夹
+    }).sort();
 
   const rootFolders = folders.filter((f) => !isSubfolder(f));
 
@@ -160,20 +189,26 @@ export function FolderSection({ onNavigate }: FolderSectionProps) {
                     <Note size={14} />
                     新建笔记
                   </button>
-                  {!isSubfolder(name) && (
-                    <button
-                      onClick={() => {
-                        setFolderMenu(null);
-                        setSubfolderParent(name);
-                        setShowNewFolder(true);
-                        setNewFolderInput("");
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-                    >
-                      新建子文件夹
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      setFolderMenu(null);
+                      setSubfolderParent(name);
+                      setShowNewFolder(true);
+                      setNewFolderInput("");
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    <Plus size={14} />
+                    新建文件夹
+                  </button>
                   <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+                  <button
+                    onClick={() => { setFolderMenu(null); setMovingFolder(name); }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+                  >
+                    <Folder size={14} />
+                    移动到…
+                  </button>
                   <button
                     onClick={() => { setFolderMenu(null); handleDeleteFolder(name); }}
                     className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
@@ -212,26 +247,49 @@ export function FolderSection({ onNavigate }: FolderSectionProps) {
 
       {folderOpen && (
         <div className="ml-2 mt-1 space-y-0.5">
-          {rootFolders.map((rootName) => (
-            <div key={rootName}>
-              <RenderFolder name={rootName} displayName={rootName} />
-              {getChildrenOf(rootName).map((childName) => (
-                <div key={childName} className="ml-5 border-l-2 border-gray-100 pl-3 dark:border-gray-700">
-                  <RenderFolder name={childName} displayName={getBaseName(childName)} />
+          {rootFolders.map((rootName) => {
+            const children = getChildrenOf(rootName);
+            const isExpanded = folderExpanded[rootName] !== false; // 默认展开
+            return (
+              <div key={rootName}>
+                <div className="flex items-center">
+                  {children.length > 0 ? (
+                    <button
+                      onClick={() => setFolderExpanded((prev) => ({ ...prev, [rootName]: !isExpanded }))}
+                      className="flex h-8 w-6 shrink-0 items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <svg
+                        width="10" height="10" viewBox="0 0 10 10"
+                        className={`transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                      >
+                        <path d="M3 1.5L7 5L3 8.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <div className="w-6 shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <RenderFolder name={rootName} displayName={rootName} />
+                  </div>
                 </div>
-              ))}
-            </div>
-          ))}
+                {isExpanded && children.map((childName) => (
+                  <div key={childName} className="ml-5 border-l-2 border-gray-100 pl-3 dark:border-gray-700">
+                    <RenderFolder name={childName} displayName={getBaseName(childName)} />
+                  </div>
+                ))}
+              </div>
+            );
+          })}
 
           {/* 新建文件夹输入框 */}
           {showNewFolder && (
-            <div className="flex items-center gap-2 px-3 py-1.5">
+            <div className="flex items-center gap-1 px-3 py-1.5">
               <input
                 type="text"
                 value={newFolderInput}
                 onChange={(e) => setNewFolderInput(e.target.value)}
                 placeholder={subfolderParent ? `${subfolderParent}/子文件夹名称` : "文件夹名称"}
-                className="flex-1 rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                className="w-28 flex-shrink-0 rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleCreateFolder();
                   if (e.key === "Escape") { setShowNewFolder(false); setNewFolderInput(""); setSubfolderParent(null); }
@@ -240,13 +298,13 @@ export function FolderSection({ onNavigate }: FolderSectionProps) {
               />
               <button
                 onClick={handleCreateFolder}
-                className="rounded px-2 py-1 text-xs text-brand-600 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
+                className="shrink-0 rounded px-2 py-1 text-xs text-brand-600 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
               >
                 确定
               </button>
               <button
                 onClick={() => { setShowNewFolder(false); setNewFolderInput(""); setSubfolderParent(null); }}
-                className="rounded px-1.5 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="shrink-0 rounded px-1.5 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 取消
               </button>
@@ -266,6 +324,89 @@ export function FolderSection({ onNavigate }: FolderSectionProps) {
             <Plus size={14} />
             新建文件夹
           </button>
+        </div>
+      )}
+
+      {/* 移动文件夹弹窗（树形展开） */}
+      {movingFolder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-80 rounded-xl border border-gray-200 bg-white p-4 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+            <h3 className="mb-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+              移动「{getBaseName(movingFolder)}」到…
+            </h3>
+            <div className="max-h-64 space-y-0.5 overflow-y-auto">
+              {/* 根目录 */}
+              <button
+                onClick={() => handleMoveFolder(movingFolder, "")}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                <Folder size={14} className="text-gray-400" />
+                根目录
+              </button>
+              {rootFolders
+                .filter((f) => f !== movingFolder)
+                .map((f) => {
+                  const children = getDirectChildren(f).filter((c) => c !== movingFolder);
+                  const isExpanded = moveExpanded[f];
+                  return (
+                    <div key={f}>
+                      <div className="flex items-center">
+                        {children.length > 0 ? (
+                          <button
+                            onClick={() =>
+                              setMoveExpanded((prev) => ({ ...prev, [f]: !prev[f] }))
+                            }
+                            className="flex h-8 w-6 shrink-0 items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                          >
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 12 12"
+                              fill="currentColor"
+                              className={`transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                            >
+                              <path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                        ) : (
+                          <div className="w-6 shrink-0" />
+                        )}
+                        <button
+                          onClick={() => handleMoveFolder(movingFolder, f)}
+                          className="flex flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                        >
+                          <Folder size={14} className="text-gray-400" />
+                          {f}
+                        </button>
+                      </div>
+                      {/* 子文件夹列表 */}
+                      {isExpanded && children.length > 0 && (
+                        <div className="ml-4 space-y-0.5 border-l-2 border-gray-100 pl-2 dark:border-gray-700">
+                          {children.map((child) => (
+                            <button
+                              key={child}
+                              onClick={() => handleMoveFolder(movingFolder, child)}
+                              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                            >
+                              <Folder size={14} className="text-gray-400" />
+                              {getBaseName(child)}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={() => setMovingFolder(null)}
+                className="rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+              >
+                取消
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

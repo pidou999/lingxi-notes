@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { SidebarNav } from "./SidebarNav";
 import { TopBar } from "./TopBar";
 import { useRequireAuth } from "@/lib/auth";
@@ -15,7 +15,9 @@ export interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isLoading } = useRequireAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const isAiPage = pathname === "/ai";
 
   const handleNavClick = useCallback(
     (item: SidebarItem | null | undefined) => {
@@ -72,7 +74,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar />
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 dark:bg-gray-950 md:p-6">
+        <main className={`flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 ${isAiPage ? "" : "p-4 md:p-6"}`}>
           {children}
         </main>
       </div>

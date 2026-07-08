@@ -14,6 +14,7 @@ import {
   Pin,
   Star,
   Lock,
+  Export
 } from "@ai-notes/icons";
 import { getNotes, createNote, deleteNote, updateNote, togglePinned, toggleStarred, getFolders } from "@/lib/storage";
 import type { Note } from "@/lib/types";
@@ -24,6 +25,7 @@ import { ExportMenu } from "@/components/export/ExportMenu";
 import { PasswordDialog } from "@/components/notes/PasswordDialog";
 import { MoveDialog } from "@/components/notes/MoveDialog";
 import { marked } from "marked";
+import { htmlToMarkdown, htmlToPlainText, htmlToDocx, getExportFilename, downloadFile, type ExportFormat } from "@/lib/convert";
 
 export default function NotesPage() {
   const router = useRouter();
@@ -34,6 +36,9 @@ export default function NotesPage() {
   const [clipOpen, setClipOpen] = useState(false);
   const [passwordDialog, setPasswordDialog] = useState<string | null>(null);
   const [moveDialog, setMoveDialog] = useState<string | null>(null);
+  const [exportNote, setExportNote] = useState<Note | null>(null);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("md");
+  const [exporting, setExporting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 24;
@@ -68,13 +73,20 @@ export default function NotesPage() {
   const refresh = useCallback(() => {
     let all = getNotes();
     if (folderFilter) {
-      all = all.filter((n) => n.folder === folderFilter);
+      all = all.filter((n) => n.folder === folderFilter || (n.folder && n.folder.startsWith(folderFilter + "/")));
     }
     setNotes(all);
   }, [folderFilter]);
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  // 监听笔记变化事件（导入/剪藏等）
+  useEffect(() => {
+    const handler = () => refresh();
+    window.addEventListener("ai-notes:note-changed", handler);
+    return () => window.removeEventListener("ai-notes:note-changed", handler);
   }, [refresh]);
 
   // 笔记列表变化时重置到第一页
@@ -161,6 +173,49 @@ export default function NotesPage() {
       prompt("复制笔记链接：", url);
     });
     setMenuOpen(null);
+  };
+
+  const handleExportNote = async () => {
+    if (!exportNote || !exportNote.html) return;
+    setExporting(true);
+    try {
+      const title = exportNote.title || "未命名笔记";
+      const tags = exportNote.tags || [];
+      let blob: Blob;
+      switch (exportFormat) {
+        case "md": {
+          const md = `# ${title}\n\n${htmlToMarkdown(exportNote.html)}` +
+            (tags.length > 0 ? `\n\n标签: ${tags.join(", ")}` : "");
+          blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+          break;
+        }
+        case "txt": {
+          const txt = `${title}\n${"=".repeat(title.length)}\n\n${htmlToPlainText(exportNote.html)}`;
+          blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+          break;
+        }
+        case "json": {
+          const json = JSON.stringify({ title, html: exportNote.html, tags, exportedAt: new Date().toISOString() }, null, 2);
+          blob = new Blob([json], { type: "application/json;charset=utf-8" });
+          break;
+        }
+        case "docx": {
+          const tagsHtml = tags.length > 0 ? `<p><strong>标签:</strong> ${tags.join(", ")}</p>` : "";
+          blob = await htmlToDocx(`<h1>${title}</h1>${tagsHtml}${exportNote.html}`, title);
+          break;
+        }
+        default:
+          return;
+      }
+      const filename = getExportFilename(title, exportFormat);
+      await downloadFile(blob, filename);
+      setExportNote(null);
+      setToast("已导出");
+    } catch {
+      setToast("导出失败");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const showToast = (msg: string) => setToast(msg);
@@ -293,6 +348,14 @@ export default function NotesPage() {
                       >
                         <Lock size={14} />
                         {note.password ? "修改密码" : "加密"}
+                      </button>
+                      {/* 导出 */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setExportNote(note); setMenuOpen(null); setExportFormat("md"); }}
+                        className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                      >
+                        <Export size={14} />
+                        导出
                       </button>
                       {/* 分隔线 */}
                       <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
@@ -429,6 +492,57 @@ export default function NotesPage() {
           currentFolder={notes.find((n) => n.id === moveDialog)?.folder}
           onSaved={() => { refresh(); showToast("已移动"); }}
         />
+      )}
+
+      {/* 导出对话框 */}
+      {exportNote && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setExportNote(null)}>
+          <div className="mx-4 w-full max-w-xs rounded-xl border border-gray-200 bg-white p-5 shadow-2xl dark:border-gray-700 dark:bg-gray-900" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-gray-100">导出格式</h3>
+            <div className="space-y-1">
+              {[
+                { value: "md" as ExportFormat, label: "Markdown" },
+                { value: "json" as ExportFormat, label: "JSON" },
+                { value: "txt" as ExportFormat, label: "纯文本" },
+                { value: "docx" as ExportFormat, label: "Word" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setExportFormat(opt.value)}
+                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                    exportFormat === opt.value
+                      ? "bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400"
+                      : "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
+                  }`}
+                >
+                  <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                    exportFormat === opt.value
+                      ? "border-brand-600 bg-brand-600 dark:border-brand-500 dark:bg-brand-500"
+                      : "border-gray-300 dark:border-gray-600"
+                  }`}>
+                    {exportFormat === opt.value && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                  </span>
+                  <span className="font-medium">{opt.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setExportNote(null)}
+                className="rounded-lg px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleExportNote}
+                disabled={exporting}
+                className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50 dark:bg-brand-500 dark:hover:bg-brand-600"
+              >
+                {exporting ? "导出中..." : "导出"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

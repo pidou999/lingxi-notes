@@ -200,17 +200,59 @@ function setSavedFolders(list: string[]): void {
   set(FOLDERS_KEY, list);
 }
 
-/** 将所有文件夹合并返回（手动保存的 + 笔记中存在的） */
+/**
+ * 清理孤儿文件夹路径 + 补全父级路径。
+ * 如果笔记的 folder 根路径不在已知文件夹中，自动补全所有父级。
+ * 例如：savedFolders = [], 笔记 folder = 软件工具/压缩解压
+ * → 自动添加 软件工具、软件工具/压缩解压 到 savedFolders
+ */
+function cleanOrphanFolders(): void {
+  const saved = getSavedFolders();
+  const notes = get<Note[]>("notes", []);
+  let notesChanged = false;
+  let savedChanged = false;
+  const newSaved = new Set(saved);
+
+  for (const note of notes) {
+    if (!note.folder) continue;
+    const folder = note.folder;
+    // 直接匹配 — 有效
+    if (newSaved.has(folder)) continue;
+    // 前缀匹配 — 有父文件夹存在，有效
+    if ([...newSaved].some((s) => folder.startsWith(s + "/"))) continue;
+    // 孤儿路径 — 补全所有父级路径
+    const parts = folder.split("/");
+    for (let i = 1; i <= parts.length; i++) {
+      const partial = parts.slice(0, i).join("/");
+      if (!newSaved.has(partial)) {
+        newSaved.add(partial);
+        savedChanged = true;
+      }
+    }
+  }
+  if (notesChanged) saveNotes(notes);
+  if (savedChanged) setSavedFolders(Array.from(newSaved));
+}
+
+/** 将所有文件夹合并返回（手动保存的 + 笔记中存在的 + 自动补全父级） */
 export function getFolders(): string[] {
+  cleanOrphanFolders();
   const notes = get<Note[]>("notes", []).filter((n) => !n.deletedAt);
   const folders = new Set<string>();
-  // 从笔记中收集
+  // 从笔记中收集（包括所有父级路径）
   for (const n of notes) {
-    if (n.folder) folders.add(n.folder);
+    if (!n.folder) continue;
+    const parts = n.folder.split("/");
+    for (let i = 1; i <= parts.length; i++) {
+      folders.add(parts.slice(0, i).join("/"));
+    }
   }
-  // 合并手动保存的
+  // 合并手动保存的（也展开父级路径）
   for (const f of getSavedFolders()) {
-    folders.add(f);
+    const parts = f.split("/");
+    for (let i = 1; i <= parts.length; i++) {
+      folders.add(parts.slice(0, i).join("/"));
+    }
   }
   return Array.from(folders).sort();
 }
@@ -225,10 +267,10 @@ export function createFolder(name: string): void {
   }
 }
 
-/** 重命名文件夹（更新笔记 + 手动列表） */
+/** 重命名文件夹（仅改该文件夹本身，不影响子文件夹） */
 export function renameFolder(oldName: string, newName: string): void {
   if (!oldName || !newName || oldName === newName) return;
-  // 更新笔记
+  // 只改精确匹配的笔记
   const notes = get<Note[]>("notes", []);
   let changed = false;
   for (const note of notes) {
@@ -239,36 +281,89 @@ export function renameFolder(oldName: string, newName: string): void {
     }
   }
   if (changed) saveNotes(notes);
-  // 更新手动列表
-  const saved = getSavedFolders();
-  const idx = saved.indexOf(oldName);
-  if (idx !== -1) {
-    saved[idx] = newName;
-    setSavedFolders(saved);
-  }
-}
-
-/** 删除文件夹（清除笔记中的 + 手动列表） */
-export function deleteFolder(name: string): void {
-  if (!name) return;
-  // 清除笔记
-  const notes = get<Note[]>("notes", []);
-  let changed = false;
-  for (const note of notes) {
-    if (note.folder === name) {
-      note.folder = undefined;
-      note.updatedAt = new Date().toISOString();
-      changed = true;
-    }
-  }
-  if (changed) saveNotes(notes);
-  // 从手动列表中移除
-  const saved = getSavedFolders().filter((f) => f !== name);
+  // 更新手动列表（只改精确匹配的文件夹名）
+  const saved = getSavedFolders().map((f) => (f === oldName ? newName : f));
   setSavedFolders(saved);
 }
 
+/** 移动文件夹到目标父文件夹下（重命名 + 更新子文件夹和笔记路径） */
+export function moveFolder(source: string, targetParent: string): void {
+  if (!source || source === targetParent) return;
+  // 不能移动到自己的子文件夹
+  if (targetParent && targetParent.startsWith(source + "/")) return;
+  const baseName = source.split("/").pop()!;
+  const newFullName = targetParent ? targetParent + "/" + baseName : baseName;
+  // 1. 更新笔记路径
+  const notes = get<Note[]>("notes", []);
+  let notesChanged = false;
+  for (const note of notes) {
+    if (note.folder === source) {
+      note.folder = newFullName;
+      note.updatedAt = new Date().toISOString();
+      notesChanged = true;
+    } else if (note.folder && note.folder.startsWith(source + "/")) {
+      note.folder = newFullName + note.folder.slice(source.length);
+      note.updatedAt = new Date().toISOString();
+      notesChanged = true;
+    }
+  }
+  if (notesChanged) saveNotes(notes);
+  // 2. 更新保存的文件夹列表
+  const saved = getSavedFolders();
+  const newSaved: string[] = [];
+  for (const f of saved) {
+    if (f === source) {
+      if (!newSaved.includes(newFullName)) newSaved.push(newFullName);
+    } else if (f.startsWith(source + "/")) {
+      const updated = newFullName + f.slice(source.length);
+      if (!newSaved.includes(updated)) newSaved.push(updated);
+    } else {
+      newSaved.push(f);
+    }
+  }
+  // 确保目标父文件夹在列表中
+  if (!newSaved.includes(targetParent)) newSaved.push(targetParent);
+  setSavedFolders(newSaved);
+}
+
+/** 删除文件夹（子文件夹提升为根，笔记路径同步更新，直接笔记变未分类） */
+export function deleteFolder(name: string): void {
+  if (!name) return;
+  const prefix = name + "/";
+  // 1. 更新笔记：直接笔记变未分类，子文件夹笔记路径更新
+  const notes = get<Note[]>("notes", []);
+  let notesChanged = false;
+  for (const note of notes) {
+    if (note.folder === name) {
+      // 直接笔记 → 未分类
+      note.folder = undefined;
+      note.updatedAt = new Date().toISOString();
+      notesChanged = true;
+    } else if (note.folder && note.folder.startsWith(prefix)) {
+      // 子文件夹笔记 → 去掉已删除层级
+      note.folder = note.folder.slice(prefix.length);
+      note.updatedAt = new Date().toISOString();
+      notesChanged = true;
+    }
+  }
+  if (notesChanged) saveNotes(notes);
+  // 2. 更新文件夹列表：移除自身，子文件夹路径更新
+  const saved = getSavedFolders();
+  const newSaved: string[] = [];
+  for (const f of saved) {
+    if (f === name) continue;
+    if (f.startsWith(prefix)) {
+      const updated = f.slice(prefix.length);
+      if (!newSaved.includes(updated)) newSaved.push(updated);
+    } else {
+      newSaved.push(f);
+    }
+  }
+  setSavedFolders(newSaved);
+}
+
 export function getNotesByFolder(folder: string): Note[] {
-  return getNotes().filter((n) => n.folder === folder);
+  return getNotes().filter((n) => n.folder === folder || (n.folder && n.folder.startsWith(folder + "/")));
 }
 
 export function getStarredNotes(): Note[] {
