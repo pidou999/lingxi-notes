@@ -15,7 +15,7 @@ import {
   Close,
 } from "@ai-notes/icons";
 import { LingxiLogo } from "./LingxiLogo";
-import { getFolders, renameFolder, deleteFolder } from "@/lib/storage";
+import { getFolders, renameFolder, deleteFolder, createNote, updateNote } from "@/lib/storage";
 
 export interface SidebarNavProps {
   collapsed: boolean;
@@ -32,6 +32,7 @@ export function SidebarNav({
   const router = useRouter();
   const [folders, setFolders] = useState<string[]>([]);
   const [folderOpen, setFolderOpen] = useState(false);
+  const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderInput, setNewFolderInput] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -62,15 +63,11 @@ export function SidebarNav({
   const handleCreateFolder = () => {
     const name = newFolderInput.trim();
     if (!name) return;
-    // 在 localStorage 中创建一个笔记来建立文件夹
-    // 实际上文件夹存在于笔记的 folder 字段中，所以我们只需要新建一个笔记并设 folder
-    // 或者直接创建一个空的文件夹标记
-    import("@/lib/storage").then(({ createNote, updateNote }) => {
-      const note = createNote("");
-      updateNote(note.id, { folder: name } as any);
-      refreshFolders();
-      setNewFolderInput("");
-    });
+    const note = createNote("");
+    updateNote(note.id, { folder: name } as any);
+    refreshFolders();
+    setShowNewFolder(false);
+    setNewFolderInput("");
   };
 
   // 重命名
@@ -246,7 +243,7 @@ export function SidebarNav({
             ))}
 
             {/* 新建文件夹输入框 */}
-            {newFolderInput !== null && (
+            {showNewFolder && (
               <div className="flex items-center gap-2 px-3 py-1.5">
                 <input
                   type="text"
@@ -256,7 +253,7 @@ export function SidebarNav({
                   className="flex-1 rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleCreateFolder();
-                    if (e.key === "Escape") { setNewFolderInput(""); }
+                    if (e.key === "Escape") { setShowNewFolder(false); setNewFolderInput(""); }
                   }}
                   autoFocus
                 />
@@ -272,8 +269,8 @@ export function SidebarNav({
             {/* 新建按钮 */}
             <button
               onClick={() => {
+                setShowNewFolder(true);
                 setNewFolderInput("");
-                // focus will be handled by the autoFocus on the input
               }}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-brand-600 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
             >
