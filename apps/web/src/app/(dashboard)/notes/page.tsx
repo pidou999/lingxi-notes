@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@ai-notes/ui-kit";
 import {
   Note as NoteIcon,
@@ -24,6 +24,8 @@ import { marked } from "marked";
 
 export default function NotesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const folderFilter = searchParams.get("folder") || "";
   const [notes, setNotes] = useState<Note[]>([]);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [clipOpen, setClipOpen] = useState(false);
@@ -52,8 +54,12 @@ export default function NotesPage() {
   }, [toast]);
 
   const refresh = useCallback(() => {
-    setNotes(getNotes());
-  }, []);
+    let all = getNotes();
+    if (folderFilter) {
+      all = all.filter((n) => n.folder === folderFilter);
+    }
+    setNotes(all);
+  }, [folderFilter]);
 
   useEffect(() => {
     refresh();
@@ -143,7 +149,7 @@ export default function NotesPage() {
   const showToast = (msg: string) => setToast(msg);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       {/* Toast 提示 */}
       {toast && (
         <div className="fixed right-4 top-4 z-50 animate-in slide-in-from-right-2 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-gray-100 dark:text-gray-900">
@@ -152,7 +158,14 @@ export default function NotesPage() {
       )}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          笔记
+          {folderFilter ? (
+            <span className="flex items-center gap-2">
+              <Folder size={22} />
+              {folderFilter}
+            </span>
+          ) : (
+            "笔记"
+          )}
         </h1>
         <div className="flex items-center gap-2">
           <ImportDialog />
@@ -188,7 +201,7 @@ export default function NotesPage() {
           </div>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {notes.map((note) => (
             <div
               key={note.id}

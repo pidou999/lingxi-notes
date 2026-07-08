@@ -217,3 +217,33 @@ export function toggleStarred(id: string): Note | undefined {
   if (!note) return undefined;
   return updateNote(id, { starred: !note.starred });
 }
+
+/** 重命名文件夹（更新所有笔记中的 folder 字段） */
+export function renameFolder(oldName: string, newName: string): void {
+  if (!oldName || !newName || oldName === newName) return;
+  const notes = get<Note[]>("notes", []);
+  let changed = false;
+  for (const note of notes) {
+    if (note.folder === oldName) {
+      note.folder = newName;
+      note.updatedAt = new Date().toISOString();
+      changed = true;
+    }
+  }
+  if (changed) saveNotes(notes);
+}
+
+/** 删除文件夹（清除所有笔记中的该 folder 字段） */
+export function deleteFolder(name: string): void {
+  if (!name) return;
+  const notes = get<Note[]>("notes", []);
+  let changed = false;
+  for (const note of notes) {
+    if (note.folder === name) {
+      note.folder = undefined;
+      note.updatedAt = new Date().toISOString();
+      changed = true;
+    }
+  }
+  if (changed) saveNotes(notes);
+}

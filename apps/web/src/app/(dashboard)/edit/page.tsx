@@ -145,7 +145,7 @@ export default function NoteEditorPage() {
   }
 
   return (
-    <div className="mx-auto flex h-full max-w-5xl flex-col">
+    <div className="mx-auto flex h-full max-w-6xl flex-col">
       {/* Toolbar */}
       <div className="mb-4 flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={handleGoBack} aria-label="返回">
