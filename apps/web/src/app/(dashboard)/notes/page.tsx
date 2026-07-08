@@ -206,18 +206,6 @@ export default function NotesPage() {
               }}
               className="group relative cursor-pointer rounded-xl border border-gray-200 bg-white p-4 transition-all hover:border-brand-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:hover:border-brand-700"
             >
-              {/* 状态指示器 */}
-              <div className="absolute right-3 top-3 flex items-center gap-1">
-                {note.pinned && (
-                  <span className="text-amber-500" title="已置顶">📌</span>
-                )}
-                {note.starred && (
-                  <span className="text-yellow-500" title="已加星">⭐</span>
-                )}
-                {note.password && (
-                  <span className="text-gray-400" title="已加密">🔒</span>
-                )}
-              </div>
 
               <div className="flex items-start justify-between">
                 <h3 className="line-clamp-2 text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -314,14 +302,21 @@ export default function NotesPage() {
                   ))}
                 </div>
               )}
-              <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
-                {new Date(note.updatedAt).toLocaleDateString("zh-CN", {
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+              <p className="mt-3 flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
+                <span>
+                  {new Date(note.updatedAt).toLocaleDateString("zh-CN", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+                <span className="flex items-center gap-1">
+                  {note.pinned && <span title="已置顶">📌</span>}
+                  {note.starred && <span title="已加星">⭐</span>}
+                  {note.password && <span title="已加密">🔒</span>}
+                </span>
               </p>
             </div>
           ))}
