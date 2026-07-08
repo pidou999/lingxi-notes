@@ -162,3 +162,11 @@ export function apiPermanentDelete(id: string) {
 export function apiCleanTrash() {
   return request<{ status: string; deleted: number }>("POST", "/api/v1/trash/clean");
 }
+
+export function apiRestoreAllTrash() {
+  return request<{ status: string; restored: number }>("POST", "/api/v1/trash/restore-all");
+}
+
+export function apiEmptyTrash() {
+  return request<{ status: string; deleted: number }>("POST", "/api/v1/trash/empty");
+}

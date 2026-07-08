@@ -66,6 +66,8 @@ func main() {
 		r.Post("/api/v1/trash/{id}/restore", restoreNoteHandler(db))
 		r.Delete("/api/v1/trash/{id}", permanentDeleteHandler(db))
 		r.Post("/api/v1/trash/clean", cleanExpiredTrashHandler(db))
+		r.Post("/api/v1/trash/restore-all", restoreAllTrashHandler(db))
+		r.Post("/api/v1/trash/empty", emptyTrashHandler(db))
 	})
 
 	// 生产模式：嵌入静态文件

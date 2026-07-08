@@ -4,8 +4,16 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Loader2, Ai, ChevronRight, Close } from "@ai-notes/icons";
 import { getNotes } from "@/lib/storage";
-import { keywordSearch, htmlToText, buildSemanticSearchPrompt, parseSearchResult } from "@/lib/search";
-import { chatCompletion, getProviders } from "@/lib/providers";
+import { keywordSearch, htmlToText } from "@/lib/search";
+import { isLoggedIn, apiSearch } from "@/lib/api";
+import type { NoteData } from "@/lib/api";
+import {
+  getEmbeddingProvider,
+  getCachedEmbeddingModel,
+  ensureAllEmbeddings,
+  searchByVector,
+  clearEmbeddings,
+} from "@/lib/embeddings";
 import type { Note } from "@/lib/types";
 
 export function SmartSearch() {
@@ -30,21 +38,54 @@ export function SmartSearch() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showResults]);
 
-  // 关键词搜索（实时）
+  // 关键词搜索（实时）— 登录后合并 Go API 结果
   useEffect(() => {
     if (!query.trim() || mode !== "keyword") return;
-    const notes = getNotes();
-    const matched = keywordSearch(notes, query);
-    setResults(matched.map((n) => ({ note: n, reason: "" })));
-    setShowResults(true);
+
+    const localNotes = getNotes();
+    const localMatched = keywordSearch(localNotes, query);
+
+    if (!isLoggedIn()) {
+      setResults(localMatched.map((n) => ({ note: n, reason: "" })));
+      setShowResults(true);
+      return;
+    }
+
+    // 登录态：本地搜索 + 后端搜索合并去重
+    apiSearch(query).then((apiResults) => {
+      const seen = new Set(localMatched.map((n) => n.id));
+      const apiNotes: Note[] = apiResults.map((d: NoteData) => ({
+        id: d.id,
+        title: d.title,
+        html: d.html,
+        json: (() => { try { return JSON.parse(d.json); } catch { return {}; } })(),
+        tags: d.tags ? d.tags.split(",").filter(Boolean) : [],
+        createdAt: d.createdAt,
+        updatedAt: d.updatedAt,
+      }));
+      // 后端结果补入本地没有的
+      const combined = [...localMatched];
+      for (const n of apiNotes) {
+        if (!seen.has(n.id)) {
+          combined.push(n);
+          seen.add(n.id);
+        }
+      }
+      setResults(combined.map((n) => ({ note: n, reason: "" })));
+      setShowResults(true);
+    }).catch(() => {
+      // 后端失败，只显示本地结果
+      setResults(localMatched.map((n) => ({ note: n, reason: "" })));
+      setShowResults(true);
+    });
   }, [query, mode]);
 
-  // AI 语义搜索
+  // AI 语义搜索（向量检索）
   const handleAiSearch = async () => {
     if (!query.trim() || searching) return;
-    const providers = getProviders().filter((p) => p.models.length > 0);
-    if (providers.length === 0) {
-      alert("请先在「模型配置」页添加服务商和模型");
+    const provider = getEmbeddingProvider();
+    if (!provider) {
+      alert("请先在设置页配置 API 服务商（需要 OpenAI 兼容协议）");
       return;
     }
 
@@ -53,18 +94,36 @@ export function SmartSearch() {
     setShowResults(true);
 
     try {
+      const model = provider.embeddingModel || "text-embedding-ada-002";
       const notes = getNotes();
       if (notes.length === 0) {
         setResults([]);
         return;
       }
 
-      const messages = buildSemanticSearchPrompt(query, notes);
-      const provider = providers[0];
-      const model = provider.models[0];
-      const raw = await chatCompletion(provider, model, messages);
-      const parsed = parseSearchResult(raw, notes);
-      setResults(parsed);
+      // 首次使用需要生成 embedding
+      const cachedModel = getCachedEmbeddingModel();
+      if (cachedModel !== model) {
+        // 换模型了，清空旧 embedding
+        clearEmbeddings();
+      }
+
+      // 确保所有笔记都有 embedding
+      await ensureAllEmbeddings(notes, provider, model);
+
+      // 向量搜索
+      const matches = await searchByVector(query, provider, model, 10);
+
+      // 将结果映射为笔记列表
+      const noteMap = new Map(notes.map((n) => [n.id, n]));
+      const noteResults = matches
+        .map((m) => ({
+          note: noteMap.get(m.noteId),
+          reason: `相似度 ${(m.score * 100).toFixed(0)}%`,
+        }))
+        .filter((r) => r.note) as { note: Note; reason: string }[];
+
+      setResults(noteResults);
     } catch {
       // 降级为关键词搜索
       const notes = getNotes();

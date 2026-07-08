@@ -70,6 +70,11 @@ function ProviderCard({
         ) : (
           <p className="text-xs text-gray-400 dark:text-gray-500">暂未添加模型</p>
         )}
+        {provider.embeddingModel && (
+          <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
+            Embedding: {provider.embeddingModel}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -120,6 +125,7 @@ function AddProviderDialog({
   const [fetching, setFetching] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<boolean | null>(null);
+  const [embeddingModel, setEmbeddingModel] = useState("");
   const modelDropdownRef = useRef<HTMLDivElement>(null);
   const isEditing = !!editProvider;
   const isCustom = selectedPreset === "custom";
@@ -129,9 +135,11 @@ function AddProviderDialog({
     if (editProvider) {
       setSelectedPreset(editProvider.type); setName(editProvider.name);
       setBaseUrl(editProvider.baseUrl); setApiKey(editProvider.apiKey); setModels(editProvider.models);
+      setEmbeddingModel(editProvider.embeddingModel || "");
     } else {
       setSelectedPreset(""); setName(""); setBaseUrl(""); setApiKey("");
       setModels([]); setModelInput(""); setFetchedModels([]); setTestResult(null);
+      setEmbeddingModel("");
       setShowApiKey(false); setShowModelDropdown(false);
     }
   }, [open, editProvider]);
@@ -181,6 +189,7 @@ function AddProviderDialog({
       apiKey: apiKey.trim(),
       protocol: currentProtocol,
       models,
+      embeddingModel: embeddingModel.trim() || undefined,
     });
   };
 
@@ -246,6 +255,15 @@ function AddProviderDialog({
               ))}
             </div>
           )}
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Embedding 模型 <span className="text-gray-400 font-normal">（用于向量检索）</span>
+          </label>
+          <input type="text" value={embeddingModel} onChange={(e) => setEmbeddingModel(e.target.value)}
+            placeholder="如 text-embedding-ada-002（留空禁用向量检索）"
+            className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
+          <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">需要 API 服务商支持 Embedding 接口（如 OpenAI / DeepSeek / SiliconFlow 等）</p>
         </div>
         {testResult !== null && (
           <div className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${testResult ? "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400" : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"}`}>

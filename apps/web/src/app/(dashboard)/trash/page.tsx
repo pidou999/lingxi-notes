@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@ai-notes/ui-kit";
 import { Trash2, RefreshCw, XCircle } from "@ai-notes/icons";
 import { getTrashNotes, restoreNote, permanentDeleteNote } from "@/lib/storage";
-import { isLoggedIn, apiRestoreNote, apiPermanentDelete } from "@/lib/api";
+import { isLoggedIn, apiListTrash, apiRestoreNote, apiPermanentDelete, apiRestoreAllTrash, apiEmptyTrash } from "@/lib/api";
+import type { NoteData, TrashNoteData } from "@/lib/api";
 import type { Note } from "@/lib/types";
 
 export default function TrashPage() {
@@ -14,8 +15,44 @@ export default function TrashPage() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(() => {
-    setNotes(getTrashNotes());
-    setLoading(false);
+    const local = getTrashNotes();
+
+    if (!isLoggedIn()) {
+      setNotes(local);
+      setLoading(false);
+      return;
+    }
+
+    // 登录态：加载后端数据
+    apiListTrash().then((apiResults) => {
+      // 后端数据转 Note 格式
+      const apiNotes: Note[] = apiResults.map((d: TrashNoteData) => ({
+        id: d.id,
+        title: d.title,
+        html: d.html,
+        json: (() => { try { return JSON.parse(d.json); } catch { return {}; } })(),
+        tags: d.tags ? d.tags.split(",").filter(Boolean) : [],
+        deletedAt: d.deletedAt,
+        createdAt: d.createdAt,
+        updatedAt: d.updatedAt,
+      }));
+
+      // 合并本地 + 后端，去重
+      const seen = new Set(local.map((n) => n.id));
+      const combined = [...local];
+      for (const n of apiNotes) {
+        if (!seen.has(n.id)) {
+          combined.push(n);
+          seen.add(n.id);
+        }
+      }
+      setNotes(combined);
+      setLoading(false);
+    }).catch(() => {
+      // 后端不可用，纯本地
+      setNotes(local);
+      setLoading(false);
+    });
   }, []);
 
   useEffect(() => {
@@ -46,6 +83,26 @@ export default function TrashPage() {
     refresh();
   };
 
+  const handleRestoreAll = () => {
+    if (notes.length === 0) return;
+    if (!confirm("确定恢复全部 " + notes.length + " 篇笔记？")) return;
+    notes.forEach((n) => {
+      restoreNote(n.id);
+    });
+    if (isLoggedIn()) apiRestoreAllTrash().catch(() => {});
+    refresh();
+  };
+
+  const handleEmptyTrash = () => {
+    if (notes.length === 0) return;
+    if (!confirm("确定清空回收站？" + notes.length + " 篇笔记将被永久删除，此操作不可恢复。")) return;
+    notes.forEach((n) => {
+      permanentDeleteNote(n.id);
+    });
+    if (isLoggedIn()) apiEmptyTrash().catch(() => {});
+    refresh();
+  };
+
   const formatDate = (iso?: string) => {
     if (!iso) return "";
     return new Date(iso).toLocaleDateString("zh-CN", {
@@ -71,11 +128,15 @@ export default function TrashPage() {
         </div>
         <div className="flex items-center gap-2">
           {notes.length > 0 && (
-            <Button variant="outline" size="sm" onClick={handleCleanAll}>
-              <Trash2 size={16} className="mr-1" />清理过期
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={handleRestoreAll}>
+                <RefreshCw size={16} className="mr-1" />恢复全部
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleEmptyTrash} className="!text-red-600 !border-red-300 hover:!bg-red-50 dark:!border-red-800 dark:hover:!bg-red-900/20">
+                <XCircle size={16} className="mr-1" />清空回收站
+              </Button>
+            </>
           )}
-          <Button variant="ghost" size="sm" onClick={refresh}><RefreshCw size={16} /></Button>
         </div>
       </div>
 

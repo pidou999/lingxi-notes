@@ -113,7 +113,7 @@ export const Sidebar = forwardRef<HTMLElement, SidebarProps>(
       <nav
         ref={ref}
         className={cn(
-          "flex flex-col gap-1 overflow-y-auto py-4",
+          "flex flex-col gap-1 overflow-y-auto py-2",
           collapsed ? "items-center px-2" : "px-3",
           className
         )}

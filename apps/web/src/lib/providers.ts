@@ -14,6 +14,8 @@ export interface ProviderConfig {
   protocol: ProtocolType;
   /** 已添加的模型列表 */
   models: string[];
+  /** 用于向量检索的 Embedding 模型名 */
+  embeddingModel?: string;
 }
 
 export interface PresetProvider {
@@ -54,6 +56,66 @@ export function saveProviders(providers: ProviderConfig[]): void {
 
 export function getPresetProvider(id: string): PresetProvider | undefined {
   return PRESET_PROVIDERS.find((p) => p.id === id);
+}
+
+// ── 模型选择器 ─────────────────────────────────
+
+const SELECTED_MODEL_KEY = "ai-notes:selected-model";
+
+export interface ModelOption {
+  /** 唯一标识 "providerId:modelName" */
+  id: string;
+  /** 提供商名称 */
+  providerName: string;
+  /** 提供商 ID */
+  providerId: string;
+  /** 模型名 */
+  modelName: string;
+}
+
+/** 获取所有已配置的模型列表 */
+export function getAllModels(): ModelOption[] {
+  const providers = getProviders();
+  const list: ModelOption[] = [];
+  for (const p of providers) {
+    for (const m of p.models) {
+      list.push({
+        id: `${p.id}:${m}`,
+        providerName: p.name,
+        providerId: p.id,
+        modelName: m,
+      });
+    }
+  }
+  return list;
+}
+
+/** 获取当前选中的模型 ID */
+export function getSelectedModel(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(SELECTED_MODEL_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** 设置当前选中的模型 ID */
+export function setSelectedModel(modelId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(SELECTED_MODEL_KEY, modelId);
+}
+
+/** 根据模型 ID 查找对应的提供商配置 + 模型名 */
+export function resolveModel(modelId: string): { provider: ProviderConfig; model: string } | null {
+  const colonIdx = modelId.indexOf(":");
+  if (colonIdx === -1) return null;
+  const providerId = modelId.slice(0, colonIdx);
+  const modelName = modelId.slice(colonIdx + 1);
+  const providers = getProviders();
+  const provider = providers.find((p) => p.id === providerId);
+  if (!provider) return null;
+  return { provider, model: modelName };
 }
 
 /**

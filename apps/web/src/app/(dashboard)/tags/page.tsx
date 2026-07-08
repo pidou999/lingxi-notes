@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Tag as TagIcon, Folder, Pin } from "@ai-notes/icons";
 import { getAllTags, getNotesByTag } from "@/lib/storage";
+import { isLoggedIn, apiListTags, apiListNotesByTag, type NoteData } from "@/lib/api";
 import type { Note } from "@/lib/types";
 import type { TagWithCount } from "@/lib/storage";
 
@@ -16,9 +17,55 @@ export default function TagsPage() {
   const [notes, setNotes] = useState<Note[]>([]);
 
   const refresh = useCallback(() => {
-    setTags(getAllTags());
+    const localTags = getAllTags();
+
     if (activeTag) {
-      setNotes(getNotesByTag(activeTag));
+      // 笔记过滤视图
+      const localNotes = getNotesByTag(activeTag);
+      if (!isLoggedIn()) {
+        setNotes(localNotes);
+        setTags(localTags);
+        return;
+      }
+      // 登录态：加载后端标签笔记
+      apiListNotesByTag(activeTag).then((apiResults) => {
+        const apiNotes: Note[] = apiResults.map((d: NoteData) => ({
+          id: d.id,
+          title: d.title,
+          html: d.html,
+          json: (() => { try { return JSON.parse(d.json); } catch { return {}; } })(),
+          tags: d.tags ? d.tags.split(",").filter(Boolean) : [],
+          createdAt: d.createdAt,
+          updatedAt: d.updatedAt,
+        }));
+        // 合并去重
+        const seen = new Set(localNotes.map((n) => n.id));
+        const merged = [...localNotes];
+        for (const n of apiNotes) {
+          if (!seen.has(n.id)) { merged.push(n); seen.add(n.id); }
+        }
+        setNotes(merged);
+      }).catch(() => setNotes(localNotes));
+      setTags(localTags);
+    } else {
+      // 标签云视图
+      if (!isLoggedIn()) {
+        setTags(localTags);
+        return;
+      }
+      // 登录态：加载后端标签列表
+      apiListTags().then((apiResults) => {
+        // 合并本地 + 后端标签
+        const seen = new Set(localTags.map((t) => t.name));
+        const merged = [...localTags];
+        for (const t of apiResults) {
+          if (!seen.has(t.name)) {
+            merged.push({ name: t.name, count: t.count });
+            seen.add(t.name);
+          }
+        }
+        setTags(merged);
+      }).catch(() => setTags(localTags));
     }
   }, [activeTag]);
 

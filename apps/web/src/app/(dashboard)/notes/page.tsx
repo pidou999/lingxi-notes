@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@ai-notes/ui-kit";
 import {
@@ -35,6 +35,15 @@ export default function NotesPage() {
   const [passwordDialog, setPasswordDialog] = useState<string | null>(null);
   const [moveDialog, setMoveDialog] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 24;
+
+  // 分页计算
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(notes.length / PAGE_SIZE)), [notes.length]);
+  const visibleNotes = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return notes.slice(start, start + PAGE_SIZE);
+  }, [notes, currentPage, PAGE_SIZE]);
 
   // 点击空白处关闭菜单
   useEffect(() => {
@@ -67,6 +76,11 @@ export default function NotesPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // 笔记列表变化时重置到第一页
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [notes.length]);
 
   const handleCreate = () => {
     const note = createNote("");
@@ -205,7 +219,7 @@ export default function NotesPage() {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {notes.map((note) => (
+          {visibleNotes.map((note) => (
             <div
               key={note.id}
               onClick={() => {
@@ -336,6 +350,57 @@ export default function NotesPage() {
               </p>
             </div>
           ))}
+
+          {/* 分页导航 */}
+          {totalPages > 1 && (
+            <div className="col-span-full flex flex-col items-center gap-2 py-4">
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                共 {notes.length} 篇 · 第 {currentPage}/{totalPages} 页
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                >
+                  上一页
+                </button>
+                {(() => {
+                  const pages: (number | string)[] = [];
+                  for (let i = 1; i <= totalPages; i++) {
+                    if (i === 1 || i === totalPages || Math.abs(i - currentPage) <= 2) {
+                      if (pages.length > 0 && pages[pages.length - 1] !== i - 1) pages.push("…");
+                      pages.push(i);
+                    }
+                  }
+                  return pages.map((p, idx) =>
+                    typeof p === "string" ? (
+                      <span key={`ellipsis-${idx}`} className="px-1 text-gray-400">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p as number)}
+                        className={`min-w-[32px] rounded-lg px-2 py-1.5 text-sm transition-colors ${
+                          p === currentPage
+                            ? "bg-brand-600 text-white dark:bg-brand-500"
+                            : "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  );
+                })()}
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
       <ClipDialog

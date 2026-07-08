@@ -95,3 +95,33 @@ func cleanExpiredTrashHandler(db *DB) http.HandlerFunc {
 		writeJSON(w, 200, map[string]any{"status": "ok", "deleted": affected})
 	}
 }
+
+// restoreAllTrashHandler — 一键恢复所有回收站笔记
+func restoreAllTrashHandler(db *DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		uid := userID(r)
+		res, err := db.Exec("UPDATE notes SET deleted_at=NULL, updated_at=? WHERE user_id=? AND deleted_at IS NOT NULL",
+			now(), uid)
+		if err != nil {
+			http.Error(w, `{"error":"恢复失败"}`, 500)
+			return
+		}
+		affected, _ := res.RowsAffected()
+		writeJSON(w, 200, map[string]any{"status": "ok", "restored": affected})
+	}
+}
+
+// emptyTrashHandler — 一键清空回收站（永久删除所有）
+func emptyTrashHandler(db *DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		uid := userID(r)
+		res, err := db.Exec("DELETE FROM notes WHERE user_id=? AND deleted_at IS NOT NULL",
+			uid)
+		if err != nil {
+			http.Error(w, `{"error":"清空失败"}`, 500)
+			return
+		}
+		affected, _ := res.RowsAffected()
+		writeJSON(w, 200, map[string]any{"status": "ok", "deleted": affected})
+	}
+}
