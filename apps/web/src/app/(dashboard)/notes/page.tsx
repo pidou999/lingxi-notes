@@ -18,6 +18,19 @@ export default function NotesPage() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [clipOpen, setClipOpen] = useState(false);
 
+  // 点击空白处关闭菜单
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = () => setMenuOpen(null);
+    const timer = setTimeout(() => {
+      document.addEventListener("click", handler);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("click", handler);
+    };
+  }, [menuOpen]);
+
   const refresh = useCallback(() => {
     setNotes(getNotes());
   }, []);
@@ -125,7 +138,10 @@ export default function NotesPage() {
           {notes.map((note) => (
             <div
               key={note.id}
-              onClick={() => router.push(`/edit?id=${note.id}`)}
+              onClick={() => {
+                setMenuOpen(null);
+                router.push(`/edit?id=${note.id}`);
+              }}
               className="group relative cursor-pointer rounded-xl border border-gray-200 bg-white p-4 transition-all hover:border-brand-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:hover:border-brand-700"
             >
               <div className="flex items-start justify-between">
