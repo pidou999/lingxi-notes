@@ -13,6 +13,10 @@ export interface Note {
   deletedAt?: string;
   createdAt: string;
   updatedAt: string;
+  pinned?: boolean;
+  starred?: boolean;
+  password?: string;
+  folder?: string;
 }
 
 export interface AuthState {

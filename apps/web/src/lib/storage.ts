@@ -95,7 +95,15 @@ export function loginUser(email: string, _password: string): User | null {
 // ─── Notes ──────────────────────────────────────────
 
 export function getNotes(): Note[] {
-  return get<Note[]>("notes", []).filter((n) => !n.deletedAt);
+  return get<Note[]>("notes", [])
+    .filter((n) => !n.deletedAt)
+    .sort((a, b) => {
+      // 置顶优先
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      // 然后按更新时间倒序
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
 }
 
 export function saveNotes(notes: Note[]): void {
@@ -125,7 +133,7 @@ export function createNote(title: string): Note {
 
 export function updateNote(
   id: string,
-  data: Partial<Pick<Note, "title" | "html" | "json" | "tags">>
+  data: Partial<Pick<Note, "title" | "html" | "json" | "tags" | "pinned" | "starred" | "password" | "folder">>
 ): Note | undefined {
   const notes = get<Note[]>("notes", []);
   const idx = notes.findIndex((n) => n.id === id);
@@ -177,4 +185,35 @@ export function permanentDeleteNote(id: string): void {
   const notes = get<Note[]>("notes", []).filter((n) => n.id !== id);
   saveNotes(notes);
   syncDeleteToApi(id);
+}
+
+// ─── Folders ──────────────────────────────────────────
+
+export function getFolders(): string[] {
+  const notes = get<Note[]>("notes", []).filter((n) => !n.deletedAt);
+  const folders = new Set<string>();
+  for (const n of notes) {
+    if (n.folder) folders.add(n.folder);
+  }
+  return Array.from(folders).sort();
+}
+
+export function getNotesByFolder(folder: string): Note[] {
+  return getNotes().filter((n) => n.folder === folder);
+}
+
+export function getStarredNotes(): Note[] {
+  return getNotes().filter((n) => n.starred);
+}
+
+export function togglePinned(id: string): Note | undefined {
+  const note = getNote(id);
+  if (!note) return undefined;
+  return updateNote(id, { pinned: !note.pinned });
+}
+
+export function toggleStarred(id: string): Note | undefined {
+  const note = getNote(id);
+  if (!note) return undefined;
+  return updateNote(id, { starred: !note.starred });
 }

@@ -20,6 +20,8 @@ export default function NoteEditorPage() {
   const [tags, setTags] = useState<string[]>([]);
   const [notFound, setNotFound] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [locked, setLocked] = useState(true);
+  const [passwordInput, setPasswordInput] = useState("");
   const editorRef = useRef<TipTapEditorHandle>(null);
 
   const loadNote = useCallback(() => {
@@ -105,6 +107,43 @@ export default function NoteEditorPage() {
     );
   }
 
+  // 密码锁定检查
+  if (locked && note.password) {
+    return (
+      <div className="mx-auto flex h-full max-w-sm flex-col items-center justify-center gap-4">
+        <span className="text-4xl">🔒</span>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">此笔记已加密</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400">请输入密码查看内容</p>
+        <input
+          type="password"
+          value={passwordInput}
+          onChange={(e) => setPasswordInput(e.target.value)}
+          placeholder="输入密码"
+          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              if (passwordInput === note.password) {
+                setLocked(false);
+              } else {
+                alert("密码错误");
+                setPasswordInput("");
+              }
+            }
+          }}
+        />
+        <Button onClick={() => {
+          if (passwordInput === note.password) {
+            setLocked(false);
+          } else {
+            alert("密码错误");
+            setPasswordInput("");
+          }
+        }} className="w-full">解锁</Button>
+        <Button variant="ghost" onClick={handleGoBack}>返回</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex h-full max-w-5xl flex-col">
       {/* Toolbar */}
@@ -120,6 +159,13 @@ export default function NoteEditorPage() {
           placeholder="笔记标题"
           className="flex-1 border-0 bg-transparent text-lg font-semibold text-gray-900 placeholder-gray-400 outline-none dark:text-gray-100 dark:placeholder-gray-500"
         />
+
+        {/* 状态指示器 */}
+        <div className="flex items-center gap-1 text-base">
+          {note.pinned && <span title="已置顶">📌</span>}
+          {note.starred && <span title="已加星">⭐</span>}
+          {note.password && <span title="已加密">🔒</span>}
+        </div>
 
         <Button
           variant="ghost"
