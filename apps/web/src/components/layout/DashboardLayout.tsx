@@ -18,8 +18,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleNavClick = useCallback(
-    (item: SidebarItem) => {
-      if (item.href) {
+    (item: SidebarItem | null | undefined) => {
+      if (item?.href) {
         router.push(item.href);
       }
     },

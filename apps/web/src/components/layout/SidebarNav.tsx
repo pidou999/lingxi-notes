@@ -57,7 +57,7 @@ export function SidebarNav({
   // 导航
   const navTo = (href: string) => {
     router.push(href);
-    onItemClick?.(null as any);
+    onItemClick?.({} as any);
     // 关闭新建文件夹输入框
     setShowNewFolder(false);
     setNewFolderInput("");
