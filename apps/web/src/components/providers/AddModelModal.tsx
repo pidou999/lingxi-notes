@@ -14,6 +14,21 @@ import {
 } from "@/lib/providers";
 import { safeUUID } from "@/lib/safe-uuid";
 
+function generateId(): string {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // fallback
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 interface AddModelModalProps {
   open: boolean;
   onClose: () => void;
@@ -126,7 +141,7 @@ export function AddModelModal({ open, onClose, onAdded }: AddModelModalProps) {
 
       const providers = getProviders();
       const newProvider: ProviderConfig = {
-        id: safeUUID(),
+        id: generateId(),
         type: selectedPreset?.id || "custom",
         name: name || selectedPreset?.name || "自定义",
         baseUrl,
@@ -141,9 +156,9 @@ export function AddModelModal({ open, onClose, onAdded }: AddModelModalProps) {
       window.dispatchEvent(new Event("providers-changed"));
       onAdded?.();
       handleClose();
-    } catch (e: any) {
-      alert("保存出错: " + (e?.message || e?.toString() || "未知错误"));
-      console.error("save error", e);
+    } catch (e) {
+      alert("保存出错: " + ((e instanceof Error ? e.message : String(e)) || "未知错误"));
+      console.error("保存模型失败:", e);
     }
   };
 
