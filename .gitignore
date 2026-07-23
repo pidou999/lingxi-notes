@@ -1,4 +1,4 @@
-# Dependencies
+﻿# Dependencies
 node_modules/
 .pnp
 .pnp.js
@@ -62,7 +62,6 @@ ai-notes.backup-*/
 
 # Generated
 public/uploads/
-scripts/
 apps/web/out/
 apps/web/.next/
 *.tsbuildinfo
@@ -81,3 +80,4 @@ tmp-*.html
 *.html.tmp
 debug-*.txt
 test-extract.*
+
