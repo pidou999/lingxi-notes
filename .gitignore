@@ -66,6 +66,9 @@ apps/web/out/
 apps/web/.next/
 *.tsbuildinfo
 
+# Go compiled binaries
+lingxi-server
+*.exe
 # Temp/scratch files
 gen-report.*
 proxy-fix.*
