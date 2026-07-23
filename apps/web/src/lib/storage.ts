@@ -6,6 +6,7 @@ import {
   apiDeleteNote,
   apiRestoreNote,
 } from "./api";
+import { safeUUID } from "./safe-uuid";
 
 const STORAGE_PREFIX = "ai-notes:";
 
@@ -161,7 +162,7 @@ export async function registerUser(
 ): Promise<User> {
   const passwordHash = password ? await hashPassword(password) : undefined;
   const user: User = {
-    id: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    id: safeUUID(),
     username,
     email,
     passwordHash,
@@ -248,7 +249,7 @@ export function getNote(id: string): Note | undefined {
 export function createNote(title: string): Note {
   const now = new Date().toISOString();
   const note: Note = {
-    id: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    id: safeUUID(),
     title: title || "",
     html: "",
     json: {},

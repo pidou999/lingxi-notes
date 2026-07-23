@@ -12,6 +12,7 @@ import {
   fetchModels,
   testConnection,
 } from "@/lib/providers";
+import { safeUUID } from "@/lib/safe-uuid";
 
 interface AddModelModalProps {
   open: boolean;
@@ -121,7 +122,7 @@ export function AddModelModal({ open, onClose, onAdded }: AddModelModalProps) {
 
     const providers = getProviders();
     const newProvider: ProviderConfig = {
-      id: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+      id: safeUUID(),
       type: selectedPreset?.id || "custom",
       name: name || selectedPreset?.name || "自定义",
       baseUrl,

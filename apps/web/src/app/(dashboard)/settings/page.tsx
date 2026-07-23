@@ -9,6 +9,7 @@ import {
   type SiteCookie,
 } from "@/lib/cookies";
 import { ProviderSection } from "@/components/providers/ProviderSection";
+import { safeUUID } from "@/lib/safe-uuid";
 
 export default function SettingsPage() {
   const [cookies, setCookies] = useState<SiteCookie[]>([]);
@@ -22,7 +23,7 @@ export default function SettingsPage() {
   const handleAdd = () => {
     if (!newDomain.trim() || !newCookie.trim()) return;
     const item: SiteCookie = {
-      id: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+      id: safeUUID(),
       domain: newDomain
         .trim()
         .toLowerCase()
