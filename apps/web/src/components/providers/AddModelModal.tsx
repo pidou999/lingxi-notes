@@ -121,7 +121,7 @@ export function AddModelModal({ open, onClose, onAdded }: AddModelModalProps) {
 
     const providers = getProviders();
     const newProvider: ProviderConfig = {
-      id: crypto.randomUUID(),
+      id: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
       type: selectedPreset?.id || "custom",
       name: name || selectedPreset?.name || "自定义",
       baseUrl,

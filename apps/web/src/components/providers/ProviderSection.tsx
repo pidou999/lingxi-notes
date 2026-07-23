@@ -170,7 +170,7 @@ function EditProviderDialog({
     if (!apiKey.trim()) { alert("请输入 API Key"); return; }
     if (models.length === 0) { alert("请至少添加一个模型"); return; }
     onSave({
-      id: editProvider?.id || crypto.randomUUID(),
+      id: editProvider?.id || crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
       type: selectedPreset,
       name: isCustom ? name.trim() : getPresetProvider(selectedPreset)?.name || name.trim(),
       baseUrl: baseUrl.trim(),

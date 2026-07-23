@@ -22,7 +22,7 @@ export default function SettingsPage() {
   const handleAdd = () => {
     if (!newDomain.trim() || !newCookie.trim()) return;
     const item: SiteCookie = {
-      id: crypto.randomUUID(),
+      id: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
       domain: newDomain
         .trim()
         .toLowerCase()
