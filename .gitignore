@@ -66,3 +66,18 @@ scripts/
 apps/web/out/
 apps/web/.next/
 *.tsbuildinfo
+
+# Temp/scratch files
+gen-report.*
+proxy-fix.*
+fix-*.js
+fix-*.ps1
+fix-remaining.js
+write-doc.js
+update-deploy-doc.js
+temp-*
+tmp-*.json
+tmp-*.html
+*.html.tmp
+debug-*.txt
+test-extract.*
