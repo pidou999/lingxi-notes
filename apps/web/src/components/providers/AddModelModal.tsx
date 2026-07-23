@@ -114,29 +114,37 @@ export function AddModelModal({ open, onClose, onAdded }: AddModelModalProps) {
   };
 
   const handleSave = () => {
-    const models = modelInput
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (!baseUrl || !apiKey || models.length === 0) return;
+    try {
+      const models = modelInput
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (!baseUrl || !apiKey || models.length === 0) {
+        alert("请填完信息再保存" + (!baseUrl?" baseUrl":"") + (!apiKey?" apiKey":"") + (models.length===0?" models":""));
+        return;
+      }
 
-    const providers = getProviders();
-    const newProvider: ProviderConfig = {
-      id: safeUUID(),
-      type: selectedPreset?.id || "custom",
-      name: name || selectedPreset?.name || "自定义",
-      baseUrl,
-      apiKey,
-      protocol: selectedPreset?.protocol || "OpenAI",
-      models,
-      embeddingModel: embeddingModel || undefined,
-    };
-    providers.push(newProvider);
-    saveProviders(providers);
-    setSelectedModel(`${newProvider.id}:${models[0]}`);
-    window.dispatchEvent(new Event("providers-changed"));
-    onAdded?.();
-    handleClose();
+      const providers = getProviders();
+      const newProvider: ProviderConfig = {
+        id: safeUUID(),
+        type: selectedPreset?.id || "custom",
+        name: name || selectedPreset?.name || "自定义",
+        baseUrl,
+        apiKey,
+        protocol: selectedPreset?.protocol || "OpenAI",
+        models,
+        embeddingModel: embeddingModel || undefined,
+      };
+      providers.push(newProvider);
+      saveProviders(providers);
+      setSelectedModel(`${newProvider.id}:${models[0]}`);
+      window.dispatchEvent(new Event("providers-changed"));
+      onAdded?.();
+      handleClose();
+    } catch (e: any) {
+      alert("保存出错: " + (e?.message || e?.toString() || "未知错误"));
+      console.error("save error", e);
+    }
   };
 
   if (!open) return null;
