@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -21,7 +22,7 @@ type Note struct {
 func listNotesHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		uid := userID(r)
-		rows, err := db.Query(
+		rows, err := db.QueryContext(r.Context(),
 			"SELECT id, title, html, json, tags, created_at, updated_at FROM notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
 			uid)
 		if err != nil {
@@ -34,6 +35,7 @@ func listNotesHandler(db *DB) http.HandlerFunc {
 		for rows.Next() {
 			var n Note
 			if err := rows.Scan(&n.ID, &n.Title, &n.HTML, &n.JSON, &n.Tags, &n.CreatedAt, &n.UpdatedAt); err != nil {
+				log.Printf("listNotes scan error: %v", err)
 				continue
 			}
 			notes = append(notes, n)
@@ -44,6 +46,7 @@ func listNotesHandler(db *DB) http.HandlerFunc {
 
 func createNoteHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 		var body struct {
 			ID    string `json:"id"`
 			Title string `json:"title"`
@@ -53,6 +56,14 @@ func createNoteHandler(db *DB) http.HandlerFunc {
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, `{"error":"请求格式错误"}`, 400)
+			return
+		}
+		if len(body.Title) > 500 {
+			http.Error(w, `{"error":"标题长度不能超过500字符"}`, 400)
+			return
+		}
+		if len(body.HTML) > 1000000 {
+			http.Error(w, `{"error":"内容长度不能超过1MB"}`, 400)
 			return
 		}
 		if body.JSON == "" {
@@ -67,7 +78,7 @@ func createNoteHandler(db *DB) http.HandlerFunc {
 			id = newID()
 		}
 		now := now()
-		_, err := db.Exec(
+		_, err := db.ExecContext(r.Context(),
 			"INSERT INTO notes (id, user_id, title, html, json, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 			id, userID(r), body.Title, body.HTML, body.JSON, body.Tags, now, now)
 		if err != nil {
@@ -91,7 +102,7 @@ func getNoteHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		var n Note
-		err := db.QueryRow(
+		err := db.QueryRowContext(r.Context(),
 			"SELECT id, title, html, json, tags, created_at, updated_at FROM notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
 			id, userID(r),
 		).Scan(&n.ID, &n.Title, &n.HTML, &n.JSON, &n.Tags, &n.CreatedAt, &n.UpdatedAt)
@@ -109,6 +120,7 @@ func getNoteHandler(db *DB) http.HandlerFunc {
 
 func updateNoteHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 		id := chi.URLParam(r, "id")
 		var body struct {
 			Title *string `json:"title"`
@@ -120,10 +132,18 @@ func updateNoteHandler(db *DB) http.HandlerFunc {
 			http.Error(w, `{"error":"请求格式错误"}`, 400)
 			return
 		}
+		if body.Title != nil && len(*body.Title) > 500 {
+			http.Error(w, `{"error":"标题长度不能超过500字符"}`, 400)
+			return
+		}
+		if body.HTML != nil && len(*body.HTML) > 1000000 {
+			http.Error(w, `{"error":"内容长度不能超过1MB"}`, 400)
+			return
+		}
 
 		// 读取当前值
 		var cur Note
-		err := db.QueryRow(
+		err := db.QueryRowContext(r.Context(),
 			"SELECT id, title, html, json, tags FROM notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
 			id, userID(r),
 		).Scan(&cur.ID, &cur.Title, &cur.HTML, &cur.JSON, &cur.Tags)
@@ -153,7 +173,7 @@ func updateNoteHandler(db *DB) http.HandlerFunc {
 			tags = *body.Tags
 		}
 
-		_, err = db.Exec(
+		_, err = db.ExecContext(r.Context(),
 			"UPDATE notes SET title=?, html=?, json=?, tags=?, updated_at=? WHERE id=? AND user_id=?",
 			title, html, jsonStr, tags, now(), id, userID(r))
 		if err != nil {
@@ -169,7 +189,7 @@ func deleteNoteHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		// 软删除：设置 deleted_at
-		res, err := db.Exec("UPDATE notes SET deleted_at=? WHERE id=? AND user_id=?", now(), id, userID(r))
+		res, err := db.ExecContext(r.Context(), "UPDATE notes SET deleted_at=? WHERE id=? AND user_id=?", now(), id, userID(r))
 		if err != nil {
 			http.Error(w, `{"error":"删除失败"}`, 500)
 			return

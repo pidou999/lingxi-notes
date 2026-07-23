@@ -1,7 +1,9 @@
 package main
 
 import (
+	"log"
 	"net/http"
+	"strings"
 )
 
 func searchHandler(db *DB) http.HandlerFunc {
@@ -13,10 +15,11 @@ func searchHandler(db *DB) http.HandlerFunc {
 			return
 		}
 
-		// LIKE 搜索标题和内容，按更新时间倒序
-		pattern := "%" + q + "%"
-		rows, err := db.Query(
-			"SELECT id, title, html, json, tags, created_at, updated_at FROM notes WHERE user_id = ? AND deleted_at IS NULL AND (title LIKE ? OR html LIKE ?) ORDER BY updated_at DESC",
+		// 转义 LIKE 通配符，防止用户通过 % _ \ 操纵查询或匹配异常
+		escaped := strings.NewReplacer("%", "\\%", "_", "\\_", "\\", "\\\\").Replace(q)
+		pattern := "%" + escaped + "%"
+		rows, err := db.QueryContext(r.Context(),
+			"SELECT id, title, html, json, tags, created_at, updated_at FROM notes WHERE user_id = ? AND deleted_at IS NULL AND (title LIKE ? ESCAPE '\\' OR html LIKE ? ESCAPE '\\') ORDER BY updated_at DESC",
 			uid, pattern, pattern)
 		if err != nil {
 			http.Error(w, `{"error":"搜索失败"}`, 500)
@@ -28,6 +31,7 @@ func searchHandler(db *DB) http.HandlerFunc {
 		for rows.Next() {
 			var n Note
 			if err := rows.Scan(&n.ID, &n.Title, &n.HTML, &n.JSON, &n.Tags, &n.CreatedAt, &n.UpdatedAt); err != nil {
+				log.Printf("search scan error: %v", err)
 				continue
 			}
 			notes = append(notes, n)

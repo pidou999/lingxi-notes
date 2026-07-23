@@ -6,6 +6,7 @@ import { SidebarNav } from "./SidebarNav";
 import { TopBar } from "./TopBar";
 import { useRequireAuth } from "@/lib/auth";
 import { Note, Bookmark, Ai, Settings, Trash2 } from "@ai-notes/icons";
+import Link from "next/link";
 import type { SidebarItem } from "@ai-notes/ui-kit";
 
 export interface DashboardLayoutProps {
@@ -92,12 +93,12 @@ function MobileNavItem({
   href: string;
 }) {
   return (
-    <a
+    <Link
       href={href}
       className="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-600 dark:text-gray-400 dark:hover:text-brand-400"
     >
       {icon}
       <span className="text-xs">{label}</span>
-    </a>
+    </Link>
   );
 }

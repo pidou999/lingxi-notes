@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { cn } from "@ai-notes/ui-kit";
+import { chain } from "@/lib/editor-utils";
 
 interface LinkDialogProps {
   editor: Editor;
@@ -41,7 +42,7 @@ export function LinkDialog({ editor, open, onClose }: LinkDialogProps) {
   };
 
   const handleRemove = () => {
-    editor.chain().focus().unsetLink().run();
+    chain(editor).unsetLink().run();
     handleClose();
   };
 
@@ -51,26 +52,39 @@ export function LinkDialog({ editor, open, onClose }: LinkDialogProps) {
 
     // Auto-prepend https:// if missing protocol
     const finalUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
-    const text = linkText.trim() || finalUrl;
 
+    // 协议白名单：仅允许 http/https，拦截 javascript: 等危险协议（存储型 XSS）
+    let parsed: URL;
+    try {
+      parsed = new URL(finalUrl);
+    } catch {
+      return;
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return;
+
+    const text = linkText.trim() || finalUrl;
     const { from, to } = editor.state.selection;
 
     if (from !== to) {
-      // Selected text → wrap in link
-      editor
-        .chain()
-        .focus()
+      // Selected text → wrap in link (setLink 由 TipTap 安全处理，不拼接 HTML)
+      chain(editor)
         .setTextSelection({ from, to })
         .setLink({ href: finalUrl })
         .run();
     } else {
-      // No selection → insert linked text
-      editor
-        .chain()
-        .focus()
-        .insertContent(
-          `<a href="${finalUrl}" rel="noopener noreferrer" target="_blank">${text}</a>`
-        )
+      // No selection → insert a safe text node with a link mark.
+      // 用 JSON 节点而非 HTML 字符串，杜绝引号转义导致的 XSS 注入。
+      chain(editor)
+        .insertContent({
+          type: "text",
+          text,
+          marks: [
+            {
+              type: "link",
+              attrs: { href: finalUrl, target: "_blank", rel: "noopener noreferrer" },
+            },
+          ],
+        })
         .run();
     }
 

@@ -92,10 +92,22 @@ export default function SettingsPage() {
             <Link size={20} className="text-gray-400" />
             抓取配置
           </h2>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            配置各网站的 Cookie，抓取需要登录才能访问的内容时会自动带上。
-            在浏览器开发者工具中登录目标网站后，复制 Cookie 字符串粘贴到下方。
-          </p>
+          <div className="mt-2 space-y-2 text-sm text-gray-500 dark:text-gray-400">
+            <p>
+              配置各网站的 Cookie，抓取需要登录才能访问的内容时会自动带上。
+            </p>
+            <div className="rounded-lg bg-amber-50 px-4 py-3 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+              <p className="font-medium mb-1">📋 从 Chrome 复制 Cookie 的正确方法：</p>
+              <ol className="list-decimal pl-4 space-y-1">
+                <li>打开 Chrome → 登录 <code className="text-xs bg-amber-100/50 dark:bg-amber-800/30 px-1 rounded">zhihu.com</code></li>
+                <li>按 <kbd className="px-1.5 py-0.5 rounded border border-amber-300/50 bg-amber-100/50 dark:border-amber-700/50 dark:bg-amber-800/30 text-xs">F12</kbd> 打开开发者工具</li>
+                <li>进入 <strong>Application</strong> → <strong>Cookies</strong> → <code className="text-xs bg-amber-100/50 dark:bg-amber-800/30 px-1 rounded">zhihu.com</code></li>
+                <li>在列表上 <strong>右键</strong> → <strong>全选</strong>（或点第一条后按住 Shift 点最后一条）</li>
+                <li>右键 → <strong>复制</strong>（或按 <kbd className="px-1.5 py-0.5 rounded border border-amber-300/50 bg-amber-100/50 dark:border-amber-700/50 dark:bg-amber-800/30 text-xs">Ctrl+C</kbd>）</li>
+                <li>回到这里，把域名设为 <code className="text-xs bg-amber-100/50 dark:bg-amber-800/30 px-1 rounded">zhihu.com</code>，Cookie 粘贴到下方输入框</li>
+              </ol>
+            </div>
+          </div>
         </div>
 
         {/* Cookie 列表 */}

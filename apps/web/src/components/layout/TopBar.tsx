@@ -1,12 +1,44 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Sun, Moon, User, LogOut, Server, Team, Settings, ChevronDown } from "@ai-notes/icons";
-import { Button } from "@ai-notes/ui-kit";
+import { Sun, Moon, User, LogOut, Server, Team, Settings, ChevronDown, Plus } from "@ai-notes/icons";
+import { Button, Switch } from "@ai-notes/ui-kit";
 import { useAuth } from "@/lib/auth";
-import { getAllModels, getSelectedModel, setSelectedModel, type ModelOption } from "@/lib/providers";
+import {
+  getAllModels,
+  getSelectedModel,
+  setSelectedModel,
+  type ModelOption,
+} from "@/lib/providers";
+import { TopBarSearch } from "./TopBarSearch";
+import { AddModelModal } from "../providers/AddModelModal";
+
+/* ════════════ SwitchRow ════════════ */
+
+function SwitchRow({
+  label,
+  description,
+  defaultChecked,
+}: {
+  label: string;
+  description: string;
+  defaultChecked: boolean;
+}) {
+  const [checked, setChecked] = useState(defaultChecked);
+  return (
+    <div className="flex items-center justify-between px-6 py-4">
+      <div>
+        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{label}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">{description}</p>
+      </div>
+      <Switch checked={checked} onChange={(e) => setChecked(e.target.checked)} />
+    </div>
+  );
+}
+
+/* ════════════ TopBar ════════════ */
 
 export function TopBar() {
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -17,24 +49,30 @@ export function TopBar() {
   const [modelOpen, setModelOpen] = useState(false);
   const [models, setModels] = useState<ModelOption[]>([]);
   const [selectedModel, setSelectedModelState] = useState<string | null>(null);
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const modelRef = useRef<HTMLDivElement>(null);
 
-  // 加载模型列表和已选模型
-  useEffect(() => {
+  const refreshModels = useCallback(() => {
     setModels(getAllModels());
     setSelectedModelState(getSelectedModel());
   }, []);
 
-  // 监听 localStorage 变化（其他 tab 或设置页修改时刷新）
   useEffect(() => {
-    const handler = () => {
-      setModels(getAllModels());
-      setSelectedModelState(getSelectedModel());
+    refreshModels();
+  }, [refreshModels]);
+
+  // 监听变化：跨 tab（storage 事件）+ 同 tab（自定义事件）
+  useEffect(() => {
+    const onStorage = () => refreshModels();
+    window.addEventListener("storage", onStorage);
+    const onProvidersChange = () => refreshModels();
+    window.addEventListener("providers-changed", onProvidersChange);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("providers-changed", onProvidersChange);
     };
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
-  }, []);
+  }, [refreshModels]);
 
   const handleSelectModel = (m: ModelOption) => {
     setSelectedModel(m.id);
@@ -42,50 +80,47 @@ export function TopBar() {
     setModelOpen(false);
   };
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-      if (modelRef.current && !modelRef.current.contains(e.target as Node)) {
-        setModelOpen(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      if (modelRef.current && !modelRef.current.contains(e.target as Node)) setModelOpen(false);
     };
     if (menuOpen || modelOpen) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuOpen, modelOpen]);
 
   const isDark = mounted && (theme === "dark" || resolvedTheme === "dark");
-
-  // 当前选中的模型信息
   const currentModel = models.find((m) => m.id === selectedModel) || models[0];
 
   return (
-    <header className="relative z-[60] flex h-14 items-center justify-end gap-2 border-b border-gray-200 bg-white px-4 dark:border-gray-800 dark:bg-gray-950">
-      <div className="flex items-center gap-2">
-        {/* 模型切换 */}
-        {models.length > 0 && (
-          <div className="relative" ref={modelRef}>
-            <button
-              onClick={() => setModelOpen(!modelOpen)}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-              aria-label="切换模型"
-            >
-              <Server size={14} />
-              <span className="max-w-[120px] truncate">
-                {currentModel?.modelName || "选择模型"}
-              </span>
-              <ChevronDown size={12} />
-            </button>
+    <header className="relative z-[60] flex h-14 items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 dark:border-gray-800 dark:bg-gray-950">
+      {/* 左侧：搜索 */}
+      <div className="flex flex-1 items-center gap-2">
+        <TopBarSearch />
+      </div>
 
-            {modelOpen && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+      {/* 右侧：模型切换、主题、用户 */}
+      <div className="flex items-center gap-2">
+        {/* 模型切换 - 始终显示 */}
+        <div className="relative" ref={modelRef}>
+          <button
+            onClick={() => setModelOpen(!modelOpen)}
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+            aria-label="切换模型"
+          >
+            <Server size={14} />
+            <span className="max-w-[120px] truncate">
+              {currentModel?.modelName || "选择模型"}
+            </span>
+            <ChevronDown size={12} />
+          </button>
+
+          {modelOpen && (
+            <div className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+              {models.length > 0 ? (
                 <div className="max-h-64 overflow-y-auto">
-                  {/* 按提供商分组 */}
                   {(() => {
                     const groups: Record<string, ModelOption[]> = {};
                     for (const m of models) {
@@ -117,15 +152,28 @@ export function TopBar() {
                     ));
                   })()}
                 </div>
-                {models.length === 0 && (
-                  <p className="px-3 py-4 text-center text-sm text-gray-400">
-                    暂无已配置的模型
-                  </p>
-                )}
+              ) : (
+                <div className="px-3 py-4 text-center">
+                  <p className="mb-1 text-sm text-gray-400 dark:text-gray-500">暂无模型</p>
+                  <p className="text-xs text-gray-300 dark:text-gray-600">请添加 API 服务商和模型</p>
+                </div>
+              )}
+              {/* 添加模型按钮 */}
+              <div className="border-t border-gray-100 dark:border-gray-800">
+                <button
+                  onClick={() => {
+                    setModelOpen(false);
+                    setAddModalOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-brand-600 transition-colors hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
+                >
+                  <Plus size={14} />
+                  添加模型
+                </button>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
         {/* Theme toggle */}
         <Button
@@ -139,7 +187,6 @@ export function TopBar() {
         </Button>
 
         {user ? (
-          /* 已登录：用户头像 + 下拉菜单 */
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -152,15 +199,9 @@ export function TopBar() {
             {menuOpen && (
               <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
                 <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {user.username}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {user.email}
-                  </p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.username}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
                 </div>
-
-                {/* 多端同步占位 */}
                 <button
                   disabled
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-gray-400 opacity-60 dark:text-gray-500"
@@ -169,38 +210,22 @@ export function TopBar() {
                   <Server size={16} />
                   多端同步（即将开放）
                 </button>
-
-                {/* 团队 */}
                 <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    router.push("/team");
-                  }}
+                  onClick={() => { setMenuOpen(false); router.push("/team"); }}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                   <Team size={16} />
                   团队
                 </button>
-
-                {/* 设置 */}
                 <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    router.push("/settings");
-                  }}
+                  onClick={() => { setMenuOpen(false); router.push("/settings"); }}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                   <Settings size={16} />
                   设置
                 </button>
-
-                {/* 退出登录 */}
                 <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    logout();
-                    router.push("/login");
-                  }}
+                  onClick={() => { setMenuOpen(false); logout().then(() => router.push("/login")); }}
                   className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:border-gray-800 dark:text-red-400 dark:hover:bg-red-900/20"
                 >
                   <LogOut size={16} />
@@ -210,17 +235,18 @@ export function TopBar() {
             )}
           </div>
         ) : (
-          /* 未登录：显示登录按钮 */
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push("/login")}
-            className="p-2"
-          >
+          <Button variant="ghost" size="sm" onClick={() => router.push("/login")} className="p-2">
             登录
           </Button>
         )}
       </div>
+
+      {/* 添加模型弹窗 */}
+      <AddModelModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onAdded={refreshModels}
+      />
     </header>
   );
 }

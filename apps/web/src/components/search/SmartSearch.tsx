@@ -9,6 +9,7 @@ import { isLoggedIn, apiSearch } from "@/lib/api";
 import type { NoteData } from "@/lib/api";
 import {
   getEmbeddingProvider,
+  getEmbeddingModelName,
   getCachedEmbeddingModel,
   ensureAllEmbeddings,
   searchByVector,
@@ -38,46 +39,51 @@ export function SmartSearch() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showResults]);
 
-  // 关键词搜索（实时）— 登录后合并 Go API 结果
+  // 关键词搜索（实时，带 ~150ms 防抖）— 登录后合并 Go API 结果
   useEffect(() => {
     if (!query.trim() || mode !== "keyword") return;
 
-    const localNotes = getNotes();
-    const localMatched = keywordSearch(localNotes, query);
+    // 停止输入 150ms 后才真正发起搜索，避免每次按键都打 API
+    const timer = setTimeout(() => {
+      const localNotes = getNotes();
+      const localMatched = keywordSearch(localNotes, query);
 
-    if (!isLoggedIn()) {
-      setResults(localMatched.map((n) => ({ note: n, reason: "" })));
-      setShowResults(true);
-      return;
-    }
-
-    // 登录态：本地搜索 + 后端搜索合并去重
-    apiSearch(query).then((apiResults) => {
-      const seen = new Set(localMatched.map((n) => n.id));
-      const apiNotes: Note[] = apiResults.map((d: NoteData) => ({
-        id: d.id,
-        title: d.title,
-        html: d.html,
-        json: (() => { try { return JSON.parse(d.json); } catch { return {}; } })(),
-        tags: d.tags ? d.tags.split(",").filter(Boolean) : [],
-        createdAt: d.createdAt,
-        updatedAt: d.updatedAt,
-      }));
-      // 后端结果补入本地没有的
-      const combined = [...localMatched];
-      for (const n of apiNotes) {
-        if (!seen.has(n.id)) {
-          combined.push(n);
-          seen.add(n.id);
-        }
+      if (!isLoggedIn()) {
+        setResults(localMatched.map((n) => ({ note: n, reason: "" })));
+        setShowResults(true);
+        return;
       }
-      setResults(combined.map((n) => ({ note: n, reason: "" })));
-      setShowResults(true);
-    }).catch(() => {
-      // 后端失败，只显示本地结果
-      setResults(localMatched.map((n) => ({ note: n, reason: "" })));
-      setShowResults(true);
-    });
+
+      // 登录态：本地搜索 + 后端搜索合并去重
+      apiSearch(query).then((apiResults) => {
+        const seen = new Set(localMatched.map((n) => n.id));
+        const apiNotes: Note[] = apiResults.map((d: NoteData) => ({
+          id: d.id,
+          title: d.title,
+          html: d.html,
+          json: (() => { try { return JSON.parse(d.json); } catch { return {}; } })(),
+          tags: d.tags ? d.tags.split(",").filter(Boolean) : [],
+          createdAt: d.createdAt,
+          updatedAt: d.updatedAt,
+        }));
+        // 后端结果补入本地没有的
+        const combined = [...localMatched];
+        for (const n of apiNotes) {
+          if (!seen.has(n.id)) {
+            combined.push(n);
+            seen.add(n.id);
+          }
+        }
+        setResults(combined.map((n) => ({ note: n, reason: "" })));
+        setShowResults(true);
+      }).catch(() => {
+        // 后端失败，只显示本地结果
+        setResults(localMatched.map((n) => ({ note: n, reason: "" })));
+        setShowResults(true);
+      });
+    }, 150);
+
+    return () => clearTimeout(timer);
   }, [query, mode]);
 
   // AI 语义搜索（向量检索）
@@ -94,7 +100,7 @@ export function SmartSearch() {
     setShowResults(true);
 
     try {
-      const model = provider.embeddingModel || "text-embedding-ada-002";
+      const model = getEmbeddingModelName(provider);
       const notes = getNotes();
       if (notes.length === 0) {
         setResults([]);
@@ -105,7 +111,7 @@ export function SmartSearch() {
       const cachedModel = getCachedEmbeddingModel();
       if (cachedModel !== model) {
         // 换模型了，清空旧 embedding
-        clearEmbeddings();
+        await clearEmbeddings();
       }
 
       // 确保所有笔记都有 embedding

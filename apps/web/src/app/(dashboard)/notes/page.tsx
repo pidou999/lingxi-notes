@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -19,13 +19,12 @@ import {
 import { getNotes, createNote, deleteNote, updateNote, togglePinned, toggleStarred, getFolders } from "@/lib/storage";
 import type { Note } from "@/lib/types";
 import { ClipDialog } from "@/components/clip/ClipDialog";
-import { SmartSearch } from "@/components/search/SmartSearch";
 import { ImportDialog } from "@/components/import/ImportDialog";
 import { ExportMenu } from "@/components/export/ExportMenu";
 import { PasswordDialog } from "@/components/notes/PasswordDialog";
 import { MoveDialog } from "@/components/notes/MoveDialog";
 import { marked } from "marked";
-import { htmlToMarkdown, htmlToPlainText, htmlToDocx, getExportFilename, downloadFile, type ExportFormat } from "@/lib/convert";
+import { htmlToMarkdown, htmlToPlainText, embedHtmlImages, getExportFilename, downloadFile, type ExportFormat } from "@/lib/convert";
 
 export default function NotesPage() {
   const router = useRouter();
@@ -35,6 +34,7 @@ export default function NotesPage() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [clipOpen, setClipOpen] = useState(false);
   const [passwordDialog, setPasswordDialog] = useState<string | null>(null);
+  const [unlockDialog, setUnlockDialog] = useState<string | null>(null);
   const [moveDialog, setMoveDialog] = useState<string | null>(null);
   const [exportNote, setExportNote] = useState<Note | null>(null);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("md");
@@ -80,9 +80,8 @@ export default function NotesPage() {
 
   useEffect(() => {
     refresh();
-  }, [refresh]);
+  }, [folderFilter]);
 
-  // 监听笔记变化事件（导入/剪藏等）
   useEffect(() => {
     const handler = () => refresh();
     window.addEventListener("ai-notes:note-changed", handler);
@@ -99,24 +98,33 @@ export default function NotesPage() {
     router.push(`/edit?id=${note.id}`);
   };
 
-  const handleClipSave = (result: { title: string; content: string; url: string; summary?: string }) => {
-    if (!result?.content) return;
+  const handleClipSave = (result: { title: string; content?: string; contentHtml?: string; text?: string; url: string; summary?: string }) => {
+    // 容错：Markdown 为空时回退到排版后的 HTML 或纯文本，避免「抓取成功但保存按钮点不动」的静默失败
+    let saveContent = result?.content || "";
+    if (!saveContent && result?.contentHtml) saveContent = result.contentHtml;
+    if (!saveContent && result?.text) saveContent = result.text;
+    if (!saveContent) {
+      setToast("抓取内容为空，无法保存");
+      return;
+    }
     const note = createNote(result.title);
 
     // 用 marked 将 Markdown 转换为标准 HTML
     let bodyHtml = "";
     try {
-      bodyHtml = marked.parse(result.content) as string;
+      bodyHtml = marked.parse(saveContent) as string;
     } catch {
       // 回退：纯文本转义
-      bodyHtml = "<pre>" + result.content.replace(/</g, "&lt;") + "</pre>";
+      bodyHtml = "<pre>" + saveContent.replace(/</g, "&lt;") + "</pre>";
     }
 
+    const safeUrl = result.url.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const safeTitle = result.title.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     let fullHtml =
       '<p><a href="' +
-      result.url +
+      safeUrl +
       '">' +
-      result.title +
+      safeTitle +
       "</a></p>\n";
 
     // 如果有摘要，插入到开头
@@ -195,13 +203,20 @@ export default function NotesPage() {
           break;
         }
         case "json": {
-          const json = JSON.stringify({ title, html: exportNote.html, tags, exportedAt: new Date().toISOString() }, null, 2);
+          const embeddedHtml = await embedHtmlImages(exportNote.html);
+          const json = JSON.stringify({ title, html: embeddedHtml, tags, exportedAt: new Date().toISOString() }, null, 2);
           blob = new Blob([json], { type: "application/json;charset=utf-8" });
           break;
         }
         case "docx": {
           const tagsHtml = tags.length > 0 ? `<p><strong>标签:</strong> ${tags.join(", ")}</p>` : "";
-          blob = await htmlToDocx(`<h1>${title}</h1>${tagsHtml}${exportNote.html}`, title);
+          const resp = await fetch("/api/export/docx", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ html: `<h1>${title}</h1>${tagsHtml}${exportNote.html}`, title }),
+          });
+          if (!resp.ok) throw new Error("导出失败");
+          blob = await resp.blob();
           break;
         }
         default:
@@ -257,9 +272,6 @@ export default function NotesPage() {
         </div>
       </div>
 
-      {/* Search bar */}
-      <SmartSearch />
-
       {notes.length === 0 ? (
         <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-gray-300 p-16 dark:border-gray-700">
           <div className="text-center">
@@ -279,13 +291,10 @@ export default function NotesPage() {
               key={note.id}
               onClick={() => {
                 setMenuOpen(null);
-                // 有密码则先验证
+                // 有密码则先解锁（自定义对话框，哈希校验，绝不明文）
                 if (note.password) {
-                  const pwd = prompt("此笔记已加密，请输入密码：");
-                  if (pwd !== note.password) {
-                    if (pwd !== null) alert("密码错误");
-                    return;
-                  }
+                  setUnlockDialog(note.id);
+                  return;
                 }
                 router.push(`/edit?id=${note.id}`);
               }}
@@ -480,6 +489,18 @@ export default function NotesPage() {
           noteId={passwordDialog}
           currentPassword={notes.find((n) => n.id === passwordDialog)?.password}
           onSaved={() => { refresh(); showToast("已更新"); }}
+        />
+      )}
+
+      {/* 解锁对话框（点击加密笔记时弹出） */}
+      {unlockDialog && (
+        <PasswordDialog
+          open={!!unlockDialog}
+          unlockOnly
+          onClose={() => setUnlockDialog(null)}
+          noteId={unlockDialog}
+          currentPassword={notes.find((n) => n.id === unlockDialog)?.password}
+          onUnlock={() => router.push(`/edit?id=${unlockDialog}`)}
         />
       )}
 

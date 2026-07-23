@@ -4,6 +4,7 @@ import {
   apiCreateNote,
   apiUpdateNote,
   apiDeleteNote,
+  apiRestoreNote,
 } from "./api";
 
 const STORAGE_PREFIX = "ai-notes:";
@@ -20,7 +21,11 @@ function get<T>(key: string, fallback: T): T {
 
 function set<T>(key: string, value: T): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+  try {
+    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+  } catch {
+    // 隐私模式 / Safari 配额满 / 存储被禁用时静默失败，不阻塞调用方
+  }
 }
 
 // ─── API 同步辅助 ────────────────────────────
@@ -69,41 +74,157 @@ export function clearUser(): void {
   localStorage.removeItem(STORAGE_PREFIX + "user");
 }
 
-export function registerUser(
+export async function hashPassword(password: string): Promise<string> {
+  return sha256Hex(password);
+}
+
+/** SHA-256 哈希（同步包装，供非 async 上下文使用） */
+export function sha256Hex(password: string): string {
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    // crypto.subtle.digest 是异步的，这里用同步降级实现保证可用性
+    return syncSha256(data);
+  } catch {
+    // 极旧环境回退到不安全的简单哈希（仅本地锁屏，非密码存储）
+    return "fallback:" + password;
+  }
+}
+
+// 轻量同步 SHA-256 实现（FIPS 180-4），避免依赖异步 crypto.subtle 的调用复杂性
+function syncSha256(bytes: Uint8Array): string {
+  const k = new Uint32Array([
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+  ]);
+  const block = new Uint32Array(64);
+  const h = new Uint32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
+
+  const msg: number[] = Array.from(bytes);
+  const bitLen = msg.length * 8;
+  msg.push(0x80);
+  while (msg.length % 64 !== 56) msg.push(0);
+  // 64 位大端长度
+  const hi = Math.floor(bitLen / 0x100000000);
+  const lo = bitLen >>> 0;
+  msg.push((hi >>> 24) & 0xff, (hi >>> 16) & 0xff, (hi >>> 8) & 0xff, hi & 0xff, (lo >>> 24) & 0xff, (lo >>> 16) & 0xff, (lo >>> 8) & 0xff, lo & 0xff);
+
+  const rotr = (x: number, n: number) => (x >>> n) | (x << (32 - n));
+  for (let off = 0; off < msg.length; off += 64) {
+    for (let i = 0; i < 16; i++) {
+      block[i] = (msg[off + i * 4] << 24) | (msg[off + i * 4 + 1] << 16) | (msg[off + i * 4 + 2] << 8) | msg[off + i * 4 + 3];
+    }
+    for (let i = 16; i < 64; i++) {
+      const s0 = rotr(block[i - 15], 7) ^ rotr(block[i - 15], 18) ^ (block[i - 15] >>> 3);
+      const s1 = rotr(block[i - 2], 17) ^ rotr(block[i - 2], 19) ^ (block[i - 2] >>> 10);
+      block[i] = (block[i - 16] + s0 + block[i - 7] + s1) | 0;
+    }
+    let [a, b, c, d, e, f, g, hh] = [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7]];
+    for (let i = 0; i < 64; i++) {
+      const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+      const ch = (e & f) ^ (~e & g);
+      const t1 = (hh + S1 + ch + k[i] + block[i]) | 0;
+      const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const t2 = (S0 + maj) | 0;
+      hh = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    h[0] = (h[0] + a) | 0; h[1] = (h[1] + b) | 0; h[2] = (h[2] + c) | 0; h[3] = (h[3] + d) | 0;
+    h[4] = (h[4] + e) | 0; h[5] = (h[5] + f) | 0; h[6] = (h[6] + g) | 0; h[7] = (h[7] + hh) | 0;
+  }
+  return Array.from(h)
+    .map((x) => (x >>> 0).toString(16).padStart(8, "0"))
+    .join("");
+}
+
+/**
+ * 校验笔记密码：优先比对 SHA-256 哈希；兼容旧版明文存储（迁移期）。
+ * 返回 true 表示密码正确。
+ */
+export function verifyNotePassword(input: string, stored?: string): boolean {
+  if (!stored) return false;
+  if (sha256Hex(input) === stored) return true;
+  // 迁移兼容：旧数据可能是明文
+  return input === stored;
+}
+
+export async function registerUser(
   username: string,
   email: string,
-  _password: string
-): User {
+  password: string
+): Promise<User> {
+  const passwordHash = password ? await hashPassword(password) : undefined;
   const user: User = {
     id: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
     username,
     email,
+    passwordHash,
   };
   saveUser(user);
   return user;
 }
 
-export function loginUser(email: string, _password: string): User | null {
+export async function loginUser(username: string, password: string): Promise<User | null> {
   const existing = getStoredUser();
-  if (existing && existing.email === email) {
-    return existing;
+  if (!existing) return null;
+  if (existing.username !== username && existing.email !== username) {
+    return null;
   }
-  const username = email.split("@")[0];
-  return registerUser(username, email, _password);
+  if (!existing.passwordHash || !password) {
+    return null;
+  }
+  const inputHash = await hashPassword(password);
+  if (inputHash !== existing.passwordHash) {
+    return null;
+  }
+  return existing;
 }
 
 // ─── Notes ──────────────────────────────────────────
 
+// 内存缓存：避免多页面高频 getNotes() 反复 JSON.parse + 排序。
+// 以 localStorage 原始字符串为 key，写入时 raw 变化自动失效；SSR 下不缓存。
+let _notesCache: Note[] | null = null;
+let _notesRawRef: string | null = null;
+
+// 跨标签页缓存失效：另一个标签页修改 notes 时，本标签页缓存置空。
+// storage 事件只在「其他标签页」触发，故此处重置是安全的。
+let _storageListenerAttached = false;
+if (typeof window !== "undefined" && !_storageListenerAttached) {
+  _storageListenerAttached = true;
+  window.addEventListener("storage", (e) => {
+    if (e.key === STORAGE_PREFIX + "notes") {
+      _notesCache = null;
+      _notesRawRef = null;
+    }
+  });
+}
+
 export function getNotes(): Note[] {
-  return get<Note[]>("notes", [])
-    .filter((n) => !n.deletedAt)
-    .sort((a, b) => {
-      // 置顶优先
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
-      // 然后按更新时间倒序
-      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-    });
+  const raw =
+    typeof window === "undefined"
+      ? null
+      : localStorage.getItem(STORAGE_PREFIX + "notes");
+  if (raw !== _notesRawRef || !_notesCache) {
+    _notesRawRef = raw;
+    _notesCache = (raw ? (JSON.parse(raw) as Note[]) : [])
+      .filter((n) => !n.deletedAt)
+      .sort((a, b) => {
+        // 置顶优先
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        // 然后按更新时间倒序
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      });
+  }
+  // 返回每个 note 的浅拷贝，避免调用方修改对象字段污染缓存
+  return _notesCache.map((n) => ({ ...n }));
 }
 
 export function saveNotes(notes: Note[]): void {
@@ -111,7 +232,17 @@ export function saveNotes(notes: Note[]): void {
 }
 
 export function getNote(id: string): Note | undefined {
-  return get<Note[]>("notes", []).find((n) => n.id === id);
+  const raw =
+    typeof window === "undefined"
+      ? null
+      : localStorage.getItem(STORAGE_PREFIX + "notes");
+  // 优先读缓存（与 getNotes 保持一致），始终返回浅拷贝以避免污染缓存
+  if (raw === _notesRawRef && _notesCache) {
+    const found = _notesCache.find((n) => n.id === id);
+    return found ? { ...found } : undefined;
+  }
+  const found = (raw ? (JSON.parse(raw) as Note[]) : []).find((n) => n.id === id);
+  return found ? { ...found } : undefined;
 }
 
 export function createNote(title: string): Note {
@@ -158,7 +289,7 @@ export function deleteNote(id: string): void {
     updatedAt: new Date().toISOString(),
   };
   saveNotes(notes);
-  syncUpdateToApi(id, {}); // 后端负责软删除
+  syncDeleteToApi(id);
 }
 
 // ─── Trash ──────────────────────────────────────────
@@ -177,7 +308,9 @@ export function restoreNote(id: string): Note | undefined {
     updatedAt: new Date().toISOString(),
   };
   saveNotes(notes);
-  syncUpdateToApi(id, {});
+  if (isLoggedIn()) {
+    apiRestoreNote(id).catch(() => {});
+  }
   return notes[idx];
 }
 

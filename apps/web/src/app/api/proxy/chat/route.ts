@@ -1,27 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isSensitiveInternalUrl } from "@/lib/fetch-utils";
 
 async function fetchWithOptions(
   url: string,
-  options: RequestInit & { rejectUnauthorized?: boolean } = {}
+  options: RequestInit = {}
 ): Promise<Response> {
-  const { rejectUnauthorized, ...fetchOpts } = options;
-  try {
-    return await fetch(url, fetchOpts);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (
-      rejectUnauthorized !== false &&
-      (msg.includes("certificate") ||
-        msg.includes("SSL") ||
-        msg.includes("self-signed") ||
-        msg.includes("UNABLE_TO_VERIFY"))
-    ) {
-      const https = await import("https");
-      const customAgent = new https.Agent({ rejectUnauthorized: false });
-      return fetch(url, { ...fetchOpts, agent: customAgent } as any);
-    }
-    throw err;
-  }
+  return fetch(url, options);
 }
 
 export async function POST(request: NextRequest) {
@@ -34,6 +18,10 @@ export async function POST(request: NextRequest) {
         { error: "缺少 provider 配置" },
         { status: 400 }
       );
+    }
+    // SSRF 防护：拦截 loopback 与云元数据地址（允许局域网模型服务如 192.168.x.x 的 ollama）
+    if (isSensitiveInternalUrl(baseUrl)) {
+      return NextResponse.json({ error: "baseUrl 指向本机/云元数据地址，已拒绝" }, { status: 400 });
     }
 
     if (!model || !messages || !Array.isArray(messages)) {
@@ -58,6 +46,7 @@ export async function POST(request: NextRequest) {
           max_tokens: 4096,
           messages,
         }),
+        signal: AbortSignal.timeout(60000),
       });
     } else {
       // OpenAI 兼容协议
@@ -73,6 +62,7 @@ export async function POST(request: NextRequest) {
           messages,
           max_tokens: 4096,
         }),
+        signal: AbortSignal.timeout(60000),
       });
     }
 

@@ -1,0 +1,61 @@
+sequenceDiagram
+    actor U as 用户
+    participant D as ClipDialog
+    participant R as clip/fetch Route
+    participant F as fetchAndExtract (fetch-utils)
+    participant S as scrapeUrl (Playwright)
+    participant E as extractContent (cheerio)
+    participant DL as downloadAllImages
+    participant T as turndown
+
+    U->>D: 输入腾讯云 URL，点击抓取
+    D->>R: POST /api/clip/fetch {url, cookie}
+    R->>R: fetchGeneric(url)
+    R->>F: fetchAndExtract(url, cookie)
+    F->>S: scrapeUrl(url, cookie)
+    S->>S: chrome(channel)+stealth+goto+waitForRealContent+轮询
+    S->>S: page.content() => pageHtml
+    S-->>F: ScrapeResult {pageHtml, title}
+    F->>E: extractContent(pageHtml, url)
+    E->>E: pickSiteConfig(tencent) → 选容器 → 清理噪音 → 解析图片
+    E-->>F: ExtractResult {title, contentHtml, text, imgUrls}
+    F->>DL: downloadAllImages(imgUrls, url)
+    DL-->>F: Map<remote, local>
+    F->>F: 替换 contentHtml 中图片为 local
+    F-->>R: ExtractResult(图片已本地化)
+    R->>T: turndown(contentHtml) => markdown
+    T-->>R: contentMd
+    R-->>D: {success, title, content:md, contentHtml}
+    D->>D: 渲染 contentHtml 预览（可滚动，含图片）
+    U->>D: 保存
+
+---
+
+sequenceDiagram
+    actor U as 用户
+    participant M as ResultModal
+    participant R as proxy/fetch-page Route
+    participant F as fetchAndExtract (fetch-utils)
+    participant H as fetch (HTTP)
+    participant S as scrapeUrl (Playwright)
+    participant E as extractContent (cheerio)
+
+    U->>M: 点击「加载原文」（腾讯云/CSDN）
+    M->>R: POST /api/proxy/fetch-page {url, cookie}
+    R->>R: fetchGenericPage(url)
+    R->>F: fetchAndExtract(url, cookie)
+    F->>H: fetch(url) 带 UA
+    alt HTTP 200 且 extractContent 文本长度 ≥ MIN_CONTENT_LENGTH
+        H-->>F: html
+        F->>E: extractContent(html, url)
+        E-->>F: ExtractResult
+    else HTTP 521/403 或 内容过短
+        H-->>F: status 521/403 或 短内容
+        F->>S: scrapeUrl(url, cookie)  // 浏览器兜底（仅一次）
+        S-->>F: ScrapeResult {pageHtml}
+        F->>E: extractContent(pageHtml, url)
+        E-->>F: ExtractResult
+    end
+    F-->>R: ExtractResult（图片已本地化）
+    R-->>M: {html: contentHtml, title, images}
+    M->>M: 渲染 html（原文）

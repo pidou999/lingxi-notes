@@ -1,0 +1,57 @@
+classDiagram
+    class ExtractResult {
+        +string title
+        +string contentHtml
+        +string text
+        +string byline
+        +string site
+        +string[] imgUrls
+    }
+    class SiteConfig {
+        +string[] contentSelectors
+        +string[] cleanupSels
+        +number blockTagThreshold
+        +string[] noiseClassKeywords
+        +boolean enableDensityOptimization
+        +string[] titleSelectors
+    }
+    class ContentExtractor {
+        +SITE_CONFIGS: Record~string,SiteConfig~
+        +FALLBACK_STATUS_CODES: number[]
+        +MIN_CONTENT_LENGTH: number
+        +extractContent(html: string, url: string): ExtractResult
+        +pickSiteConfig(hostname: string): SiteConfig
+        -scoreContainer(el, config): number
+        -processImages($content, baseUrl): string[]
+    }
+    class Scraper {
+        +ScrapeResult.pageHtml: string
+        +scrapeUrl(url, cookie?): ScrapeResult
+        +scrapePageHtml(url, cookie?): string
+    }
+    class FetchUtils {
+        +UA: string
+        +downloadAllImages(urls, referer?): Map
+        +fetchAndExtract(url, cookie?): ExtractResult
+        +isHomepageUrl(url): boolean
+    }
+    class ClipFetchRoute {
+        +POST(request): Response
+        -fetchGeneric(url): ~title,contentMd,contentHtml~
+    }
+    class ProxyFetchRoute {
+        +POST(request): Response
+        -fetchGenericPage(url): ~html,title,images~
+    }
+    class ClipDialog {
+        +open: boolean
+        +onSave(result)
+        -handleFetch()
+    }
+
+    ContentExtractor ..> SiteConfig : 使用配置
+    FetchUtils ..> ContentExtractor : 调用 extractContent
+    FetchUtils ..> Scraper : 兜底调 scrapeUrl
+    ClipFetchRoute ..> FetchUtils : fetchAndExtract
+    ProxyFetchRoute ..> FetchUtils : fetchAndExtract
+    ClipDialog ..> ClipFetchRoute : POST /api/clip/fetch

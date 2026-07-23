@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 func listTrashHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		uid := userID(r)
-		rows, err := db.Query(
+		rows, err := db.QueryContext(r.Context(),
 			"SELECT id, title, html, json, tags, created_at, updated_at, deleted_at FROM notes WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC",
 			uid)
 		if err != nil {
@@ -30,6 +31,7 @@ func listTrashHandler(db *DB) http.HandlerFunc {
 			var n Note
 			var deletedAt *string
 			if err := rows.Scan(&n.ID, &n.Title, &n.HTML, &n.JSON, &n.Tags, &n.CreatedAt, &n.UpdatedAt, &deletedAt); err != nil {
+				log.Printf("listTrash scan error: %v", err)
 				continue
 			}
 			d := ""
@@ -46,7 +48,7 @@ func listTrashHandler(db *DB) http.HandlerFunc {
 func restoreNoteHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
-		res, err := db.Exec("UPDATE notes SET deleted_at=NULL, updated_at=? WHERE id=? AND user_id=? AND deleted_at IS NOT NULL",
+		res, err := db.ExecContext(r.Context(), "UPDATE notes SET deleted_at=NULL, updated_at=? WHERE id=? AND user_id=? AND deleted_at IS NOT NULL",
 			now(), id, userID(r))
 		if err != nil {
 			http.Error(w, `{"error":"恢复失败"}`, 500)
@@ -65,7 +67,7 @@ func restoreNoteHandler(db *DB) http.HandlerFunc {
 func permanentDeleteHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
-		res, err := db.Exec("DELETE FROM notes WHERE id=? AND user_id=? AND deleted_at IS NOT NULL",
+		res, err := db.ExecContext(r.Context(), "DELETE FROM notes WHERE id=? AND user_id=? AND deleted_at IS NOT NULL",
 			id, userID(r))
 		if err != nil {
 			http.Error(w, `{"error":"删除失败"}`, 500)
@@ -85,7 +87,7 @@ func cleanExpiredTrashHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		uid := userID(r)
 		threshold := time.Now().Add(-30 * 24 * time.Hour).UTC().Format(time.RFC3339)
-		res, err := db.Exec("DELETE FROM notes WHERE user_id=? AND deleted_at IS NOT NULL AND deleted_at < ?",
+		res, err := db.ExecContext(r.Context(), "DELETE FROM notes WHERE user_id=? AND deleted_at IS NOT NULL AND deleted_at < ?",
 			uid, threshold)
 		if err != nil {
 			http.Error(w, `{"error":"清理失败"}`, 500)
@@ -100,7 +102,7 @@ func cleanExpiredTrashHandler(db *DB) http.HandlerFunc {
 func restoreAllTrashHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		uid := userID(r)
-		res, err := db.Exec("UPDATE notes SET deleted_at=NULL, updated_at=? WHERE user_id=? AND deleted_at IS NOT NULL",
+		res, err := db.ExecContext(r.Context(), "UPDATE notes SET deleted_at=NULL, updated_at=? WHERE user_id=? AND deleted_at IS NOT NULL",
 			now(), uid)
 		if err != nil {
 			http.Error(w, `{"error":"恢复失败"}`, 500)
@@ -115,7 +117,7 @@ func restoreAllTrashHandler(db *DB) http.HandlerFunc {
 func emptyTrashHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		uid := userID(r)
-		res, err := db.Exec("DELETE FROM notes WHERE user_id=? AND deleted_at IS NOT NULL",
+		res, err := db.ExecContext(r.Context(), "DELETE FROM notes WHERE user_id=? AND deleted_at IS NOT NULL",
 			uid)
 		if err != nil {
 			http.Error(w, `{"error":"清空失败"}`, 500)

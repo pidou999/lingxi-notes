@@ -1,27 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { assertUrlNotSensitive } from "@/lib/ssrf";
 
-async function fetchWithOptions(
-  url: string,
-  options: RequestInit & { rejectUnauthorized?: boolean } = {}
-): Promise<Response> {
-  const { rejectUnauthorized, ...fetchOpts } = options;
-  try {
-    return await fetch(url, fetchOpts);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (
-      rejectUnauthorized !== false &&
-      (msg.includes("certificate") ||
-        msg.includes("SSL") ||
-        msg.includes("self-signed") ||
-        msg.includes("UNABLE_TO_VERIFY"))
-    ) {
-      const https = await import("https");
-      const customAgent = new https.Agent({ rejectUnauthorized: false });
-      return fetch(url, { ...fetchOpts, agent: customAgent } as any);
-    }
-    throw err;
-  }
+const FETCH_TIMEOUT_MS = 20000;
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  return fetch(url, { ...options, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
 }
 
 export async function POST(request: NextRequest) {
@@ -38,7 +21,7 @@ export async function POST(request: NextRequest) {
     let resp: Response;
 
     if (protocol === "Anthropic") {
-      resp = await fetchWithOptions("https://api.anthropic.com/v1/messages", {
+      resp = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
           "x-api-key": apiKey,
@@ -52,8 +35,18 @@ export async function POST(request: NextRequest) {
         }),
       });
     } else {
+      // SSRF 防护：仅拦截本机/云元数据，允许局域网模型服务（如 192.168.x.x 的 ollama）。
+      // 不再对 SSL 错误自动降级 rejectUnauthorized，避免中间人劫持。
+      try {
+        await assertUrlNotSensitive(baseUrl);
+      } catch {
+        return NextResponse.json(
+          { ok: false, error: "非法的服务地址（禁止访问本机/云元数据）" },
+          { status: 200 }
+        );
+      }
       const url = baseUrl.replace(/\/+$/, "") + "/chat/completions";
-      resp = await fetchWithOptions(url, {
+      resp = await fetchWithTimeout(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,

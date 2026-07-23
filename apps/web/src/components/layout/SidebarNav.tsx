@@ -13,6 +13,7 @@ import {
   Trash2,
   Plus,
   Star,
+  Graph,
 } from "@ai-notes/icons";
 import { LingxiLogo } from "./LingxiLogo";
 import { FolderSection } from "./FolderSection";
@@ -72,6 +73,13 @@ export function SidebarNav({
       icon: <Tag size={20} />,
       href: "/tags",
       active: pathname.startsWith("/tags"),
+    },
+    {
+      id: "graph",
+      label: "图谱",
+      icon: <Graph size={20} />,
+      href: "/graph",
+      active: pathname.startsWith("/graph"),
     },
   ];
 

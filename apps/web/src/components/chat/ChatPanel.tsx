@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Ai, Close, Loader2, Note } from "@ai-notes/icons";
 import { chatCompletion, getProviders } from "@/lib/providers";
 import { htmlToText } from "@/lib/search";
+import { escapeHtml } from "@/lib/escape";
 
 interface Message {
   role: "user" | "assistant";
@@ -103,10 +104,7 @@ export function ChatPanel({ open, onClose, noteTitle, noteHtml, onSaveToNote }: 
   const handleSaveToNote = useCallback(() => {
     if (!onSaveToNote || messages.length === 0) return;
 
-    // HTML 转义用户内容，防止注入
-    const escapeHtml = (s: string) =>
-      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
+    // HTML 转义用户内容，防止注入（使用公共 escape 工具）
     // 格式化为干净的 HTML（TipTap 可解析）
     const items = messages
       .map((m) => {
@@ -137,14 +135,14 @@ export function ChatPanel({ open, onClose, noteTitle, noteHtml, onSaveToNote }: 
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop - 点击外部关闭 */}
       <div
-        className="fixed inset-0 z-40 bg-black/20 md:bg-transparent md:pointer-events-none"
+        className="fixed inset-0 z-40 bg-black/20 md:bg-transparent"
         onClick={handleClose}
       />
 
-      {/* Panel */}
-      <div className="fixed bottom-0 right-0 top-14 z-50 flex w-full flex-col border-l border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900 md:top-0 md:w-96">
+      {/* Panel - top-14 确保在 TopBar 下方 */}
+      <div className="fixed bottom-0 right-0 top-14 z-50 flex w-full flex-col border-l border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900 md:w-96">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <div className="flex items-center gap-2">

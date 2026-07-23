@@ -1,0 +1,86 @@
+{
+  "name": "lingxi-notes",
+  "version": "1.0.0",
+  "description": "灵犀笔记 - Windows 桌面版",
+  "main": "main.js",
+  "author": "Lingxi Notes",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.lingxi.notes",
+    "productName": "灵犀笔记",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "logo.png"
+    ],
+    "extraResources": [
+      {
+        "from": "../apps/web/.next",
+        "to": "web/.next",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../apps/web/public",
+        "to": "web/public",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../apps/web/node_modules",
+        "to": "web/node_modules",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../apps/web/package.json",
+        "to": "web/package.json"
+      },
+      {
+        "from": "../apps/web/next.config.ts",
+        "to": "web/next.config.ts"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "logo.png",
+      "artifactName": "灵犀笔记-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "灵犀笔记",
+      "uninstallDisplayName": "灵犀笔记"
+    },
+    "asar": false,
+    "asarUnpack": [
+      "**/*.node"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3"
+  }
+}

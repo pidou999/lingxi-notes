@@ -6,7 +6,7 @@ import { Export as ExportIcon, CheckCircle, Close } from "@ai-notes/icons";
 import {
   htmlToMarkdown,
   htmlToPlainText,
-  htmlToDocx,
+  embedHtmlImages,
   getExportFilename,
   downloadFile,
   type ExportFormat,
@@ -68,10 +68,11 @@ export function ExportSingleNote({ title, html, tags }: Props) {
           break;
         }
         case "json": {
+          const embeddedHtml = await embedHtmlImages(html);
           const json = JSON.stringify(
             {
               title: noteTitle,
-              html,
+              html: embeddedHtml,
               tags,
               exportedAt: new Date().toISOString(),
             },
@@ -86,7 +87,13 @@ export function ExportSingleNote({ title, html, tags }: Props) {
             tags && tags.length > 0
               ? `<p><strong>标签:</strong> ${tags.join(", ")}</p>`
               : "";
-          blob = await htmlToDocx(`<h1>${noteTitle}</h1>${tagsHtml}${html}`, noteTitle);
+          const resp = await fetch("/api/export/docx", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ html: `<h1>${noteTitle}</h1>${tagsHtml}${html}`, title: noteTitle }),
+          });
+          if (!resp.ok) throw new Error("导出失败");
+          blob = await resp.blob();
           break;
         }
         default:

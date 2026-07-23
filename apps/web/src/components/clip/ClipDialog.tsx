@@ -30,6 +30,10 @@ interface ClipResult {
   url: string;
   success: boolean;
   summary?: string;
+  /** 排好版的正文 HTML（含图片），供弹窗预览渲染 */
+  contentHtml?: string;
+  /** 图片地址列表 */
+  imgUrls?: string[];
 }
 
 export function ClipDialog({
@@ -142,7 +146,7 @@ export function ClipDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
-        className="mx-4 flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+        className="mx-4 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
         role="dialog"
         aria-modal="true"
         aria-label="链接收藏"
@@ -162,8 +166,8 @@ export function ClipDialog({
           </button>
         </div>
 
-        {/* Body - scrollable */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        {/* Body - flex layout with dedicated scroll area for preview */}
+        <div className="flex flex-1 flex-col overflow-hidden px-6 py-4">
           {/* URL Input */}
           <form onSubmit={handleFetch} className="space-y-3">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -236,9 +240,9 @@ export function ClipDialog({
             </div>
           )}
 
-          {/* Fetched result */}
+          {/* Fetched result - scrollable preview area */}
           {result && (
-            <div className="mt-6 space-y-4">
+            <div className="mt-6 flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto">
               {/* Title preview */}
               <div>
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -249,14 +253,20 @@ export function ClipDialog({
                 </p>
               </div>
 
-              {/* Content preview */}
+              {/* Content preview（排版 HTML，含图片） */}
               <div>
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
                   内容预览
                 </p>
-                <div className="mt-1 max-h-32 overflow-y-auto rounded-lg bg-gray-50 p-3 text-xs leading-relaxed text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                  {result.content.slice(0, 600)}
-                  {result.content.length > 600 && "..."}
+                <div className="clip-preview mt-1 h-full min-h-0 overflow-y-auto rounded-lg bg-gray-50 p-4 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                  {result.contentHtml ? (
+                    <div dangerouslySetInnerHTML={{ __html: result.contentHtml }} />
+                  ) : (
+                    <span className="text-xs leading-relaxed">
+                      {result.content.slice(0, 600)}
+                      {result.content.length > 600 && "..."}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -375,7 +385,7 @@ export function ClipDialog({
 
         {/* Footer - Save / Cancel */}
         {result && (
-          <div className="flex items-center justify-between border-t border-gray-100 px-6 py-4 dark:border-gray-800">
+          <div className="relative z-10 flex items-center justify-between border-t border-gray-100 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
             <div className="flex items-center gap-2 text-xs text-gray-400">
               {/* 摘要状态 */}
               {summary && (

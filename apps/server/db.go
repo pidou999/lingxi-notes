@@ -62,8 +62,10 @@ func migrate(db *DB) error {
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_notes_user ON notes(user_id);
-	CREATE INDEX IF NOT EXISTS idx_providers_user ON providers(user_id);
-	`
+		CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated_at);
+		CREATE INDEX IF NOT EXISTS idx_notes_deleted ON notes(deleted_at);
+		CREATE INDEX IF NOT EXISTS idx_providers_user ON providers(user_id);
+		`
 	if _, err := db.Exec(schema); err != nil {
 		return err
 	}

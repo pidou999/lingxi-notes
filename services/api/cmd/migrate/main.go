@@ -8,6 +8,7 @@ import (
 
 	"github.com/joho/godotenv"
 
+	"github.com/user/ai-notes/internal/config"
 	"github.com/user/ai-notes/pkg/db"
 )
 
@@ -21,7 +22,13 @@ func main() {
 
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		databaseURL = "postgres://ainotes:ainotes@localhost:5432/ainotes?sslmode=disable"
+		if cfg, err := config.Load(); err == nil && cfg.DatabaseURL != "" {
+			databaseURL = cfg.DatabaseURL
+		}
+	}
+	if databaseURL == "" {
+		slog.Error("DATABASE_URL 未配置：请通过环境变量或 .env 显式设置数据库连接串")
+		os.Exit(1)
 	}
 
 	migrationsPath := "migrations"

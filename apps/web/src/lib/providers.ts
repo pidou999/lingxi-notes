@@ -23,17 +23,20 @@ export interface PresetProvider {
   name: string;
   baseUrl: string;
   protocol: ProtocolType;
+  /** 该服务商推荐的 Embedding 模型名 */
+  embeddingModel?: string;
 }
 
 export const PRESET_PROVIDERS: PresetProvider[] = [
-  { id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", protocol: "OpenAI" },
+  { id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", protocol: "OpenAI", embeddingModel: "text-embedding-3-small" },
   { id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com", protocol: "Anthropic" },
   { id: "deepseek", name: "DeepSeek", baseUrl: "https://api.deepseek.com/v1", protocol: "OpenAI" },
-  { id: "moonshot", name: "Moonshot", baseUrl: "https://api.moonshot.cn/v1", protocol: "OpenAI" },
-  { id: "qwen", name: "通义千问", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", protocol: "OpenAI" },
-  { id: "zhipu", name: "智谱AI", baseUrl: "https://open.bigmodel.cn/api/paas/v4", protocol: "OpenAI" },
-  { id: "siliconflow", name: "SiliconFlow", baseUrl: "https://api.siliconflow.cn/v1", protocol: "OpenAI" },
-  { id: "baidu", name: "文心一言", baseUrl: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop", protocol: "OpenAI" },
+  { id: "moonshot", name: "Moonshot", baseUrl: "https://api.moonshot.cn/v1", protocol: "OpenAI", embeddingModel: "moonshot-v1-8k" },
+  { id: "qwen", name: "通义千问", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", protocol: "OpenAI", embeddingModel: "text-embedding-v3" },
+  { id: "zhipu", name: "智谱AI", baseUrl: "https://open.bigmodel.cn/api/paas/v4", protocol: "OpenAI", embeddingModel: "embedding-3" },
+  { id: "siliconflow", name: "SiliconFlow", baseUrl: "https://api.siliconflow.cn/v1", protocol: "OpenAI", embeddingModel: "BAAI/bge-large-zh-v1.5" },
+  { id: "sensenova", name: "商汤日日新", baseUrl: "https://token.sensenova.cn/v1", protocol: "OpenAI" },
+  { id: "baidu", name: "百度千帆", baseUrl: "https://qianfan.baidubce.com/v2", protocol: "OpenAI" },
   { id: "custom", name: "自定义", baseUrl: "", protocol: "OpenAI" },
 ];
 

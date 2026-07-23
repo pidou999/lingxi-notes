@@ -6,8 +6,13 @@ import { TextSelection } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
+import Table from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
 import { EditorToolbar } from "./EditorToolbar";
 import { EnhancedCodeBlock } from "./extensions/EnhancedCodeBlock";
+import { createWikiLinkPlugin, wikiLinkPluginKey } from "./extensions/WikiLink";
 import { cn } from "@ai-notes/ui-kit";
 
 export interface TipTapEditorProps {
@@ -34,30 +39,43 @@ export const TipTapEditor = forwardRef<TipTapEditorHandle, TipTapEditorProps>(fu
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInternalChange = useRef(false);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const extensions: any[] = [
+    StarterKit.configure({
+      heading: {
+        levels: [1, 2, 3],
+      },
+      codeBlock: false,
+    }),
+    EnhancedCodeBlock,
+    Link.configure({
+      openOnClick: true,
+      HTMLAttributes: {
+        class:
+          "text-brand-600 underline underline-offset-2 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300",
+      },
+    }),
+    Image.configure({
+      HTMLAttributes: {
+        class: "max-w-full h-auto rounded-lg my-2",
+      },
+      allowBase64: true,
+    }),
+    Table.configure({
+      HTMLAttributes: {
+        class: "w-full border-collapse my-4",
+      },
+      resizable: true,
+    }),
+    TableRow,
+    TableCell,
+    TableHeader,
+  ];
+
+  const initialContent = content ? content : contentJson;
   const editorOptions: Partial<EditorOptions> = {
-    extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
-        },
-        codeBlock: false,
-      }),
-      EnhancedCodeBlock,
-      Link.configure({
-        openOnClick: true,
-        HTMLAttributes: {
-          class:
-            "text-brand-600 underline underline-offset-2 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300",
-        },
-      }),
-      Image.configure({
-        HTMLAttributes: {
-          class: "max-w-full h-auto rounded-lg my-2",
-        },
-        allowBase64: true,
-      }),
-    ],
-    content: contentJson || content,
+    extensions,
+    content: initialContent,
     editable,
     editorProps: {
       attributes: {
@@ -196,6 +214,25 @@ export const TipTapEditor = forwardRef<TipTapEditorHandle, TipTapEditorProps>(fu
 
   const editor = useEditor(editorOptions);
 
+  // 注入 WikiLink 插件（在编辑器初始化后）
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const wikiPlugin = createWikiLinkPlugin();
+    const { state } = editor.view;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newState = state.reconfigure({ plugins: state.plugins.concat([wikiPlugin]) } as any);
+    editor.view.updateState(newState);
+    return () => {
+      // 清理：移除 wiki 插件
+      const { state: currentState } = editor.view;
+      if (!editor.isDestroyed) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cleanState = currentState.reconfigure({ plugins: currentState.plugins.filter((p: any) => p.spec.key !== wikiLinkPluginKey) } as any);
+        editor.view.updateState(cleanState);
+      }
+    };
+  }, [editor]);
+
   useEffect(() => {
     if (editor && contentJson && !editor.isDestroyed) {
       const currentJson = JSON.stringify(editor.getJSON());
@@ -244,7 +281,7 @@ export const TipTapEditor = forwardRef<TipTapEditorHandle, TipTapEditorProps>(fu
       )}
     >
       <EditorToolbar editor={editor} />
-      <div className="overflow-y-auto">
+      <div className="overflow-y-auto overflow-x-hidden">
         <EditorContent editor={editor} />
       </div>
     </div>

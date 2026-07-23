@@ -12,6 +12,7 @@ import {
   fetchModels,
   testConnection,
 } from "@/lib/providers";
+import { AddModelModal } from "./AddModelModal";
 
 /* ════════════ ProviderCard ════════════ */
 
@@ -106,12 +107,12 @@ function ProviderSelect({ value, onChange }: { value: string; onChange: (v: stri
   );
 }
 
-/* ════════════ AddProviderDialog ════════════ */
+/* ════════════ EditProviderDialog（仅编辑用） ════════════ */
 
-function AddProviderDialog({
+function EditProviderDialog({
   open, onClose, onSave, editProvider,
 }: {
-  open: boolean; onClose: () => void; onSave: (p: ProviderConfig) => void; editProvider?: ProviderConfig | null;
+  open: boolean; onClose: () => void; onSave: (p: ProviderConfig) => void; editProvider: ProviderConfig | null;
 }) {
   const [selectedPreset, setSelectedPreset] = useState("");
   const [name, setName] = useState("");
@@ -127,21 +128,13 @@ function AddProviderDialog({
   const [testResult, setTestResult] = useState<boolean | null>(null);
   const [embeddingModel, setEmbeddingModel] = useState("");
   const modelDropdownRef = useRef<HTMLDivElement>(null);
-  const isEditing = !!editProvider;
   const isCustom = selectedPreset === "custom";
 
   useEffect(() => {
-    if (!open) return;
-    if (editProvider) {
-      setSelectedPreset(editProvider.type); setName(editProvider.name);
-      setBaseUrl(editProvider.baseUrl); setApiKey(editProvider.apiKey); setModels(editProvider.models);
-      setEmbeddingModel(editProvider.embeddingModel || "");
-    } else {
-      setSelectedPreset(""); setName(""); setBaseUrl(""); setApiKey("");
-      setModels([]); setModelInput(""); setFetchedModels([]); setTestResult(null);
-      setEmbeddingModel("");
-      setShowApiKey(false); setShowModelDropdown(false);
-    }
+    if (!open || !editProvider) return;
+    setSelectedPreset(editProvider.type); setName(editProvider.name);
+    setBaseUrl(editProvider.baseUrl); setApiKey(editProvider.apiKey); setModels(editProvider.models);
+    setEmbeddingModel(editProvider.embeddingModel || "");
   }, [open, editProvider]);
 
   useEffect(() => {
@@ -150,11 +143,6 @@ function AddProviderDialog({
     const t = setTimeout(() => document.addEventListener("mousedown", handle), 0);
     return () => { clearTimeout(t); document.removeEventListener("mousedown", handle); };
   }, [showModelDropdown]);
-
-  const handlePresetSelect = (value: string) => {
-    setSelectedPreset(value); setTestResult(null); setFetchedModels([]);
-    if (value !== "custom") { const p = getPresetProvider(value); if (p) setBaseUrl(p.baseUrl); setName(""); } else setBaseUrl("");
-  };
 
   const currentProtocol = useMemo(() => getPresetProvider(selectedPreset)?.protocol || "OpenAI", [selectedPreset]);
 
@@ -194,11 +182,11 @@ function AddProviderDialog({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={isEditing ? "编辑服务商" : "添加服务商"}>
+    <Modal open={open} onClose={onClose} title="编辑服务商">
       <div className="space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">服务商</label>
-          <ProviderSelect value={selectedPreset} onChange={handlePresetSelect} />
+          <ProviderSelect value={selectedPreset} onChange={(v) => { setSelectedPreset(v); setTestResult(null); setFetchedModels([]); if (v !== "custom") { const p = getPresetProvider(v); if (p) setBaseUrl(p.baseUrl); } }} />
         </div>
         {isCustom && (
           <div>
@@ -261,7 +249,7 @@ function AddProviderDialog({
             Embedding 模型 <span className="text-gray-400 font-normal">（用于向量检索）</span>
           </label>
           <input type="text" value={embeddingModel} onChange={(e) => setEmbeddingModel(e.target.value)}
-            placeholder="如 text-embedding-ada-002（留空禁用向量检索）"
+            placeholder="如 text-embedding-v3、BAAI/bge-large-zh-v1.5（留空自动推荐）"
             className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500" />
           <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">需要 API 服务商支持 Embedding 接口（如 OpenAI / DeepSeek / SiliconFlow 等）</p>
         </div>
@@ -291,18 +279,34 @@ function AddProviderDialog({
 
 export function ProviderSection() {
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ProviderConfig | null>(null);
 
   useEffect(() => { setProviders(getProviders()); }, []);
 
-  const handleSave = (p: ProviderConfig) => {
-    const updated = editing ? providers.map((x) => (x.id === p.id ? p : x)) : [...providers, p];
-    setProviders(updated); saveProviders(updated); setEditing(null); setDialogOpen(false);
+  // 监听 providers 变化（AddModelModal 保存后刷新列表）
+  useEffect(() => {
+    const refresh = () => setProviders(getProviders());
+    window.addEventListener("providers-changed", refresh);
+    return () => window.removeEventListener("providers-changed", refresh);
+  }, []);
+
+  const handleEditSave = (p: ProviderConfig) => {
+    const updated = providers.map((x) => (x.id === p.id ? p : x));
+    setProviders(updated); saveProviders(updated); setEditing(null); setEditDialogOpen(false);
+    window.dispatchEvent(new Event("providers-changed"));
   };
 
-  const handleEdit = (p: ProviderConfig) => { setEditing(p); setDialogOpen(true); };
-  const handleDelete = (id: string) => { setProviders((p) => { const v = p.filter((x) => x.id !== id); saveProviders(v); return v; }); };
+  const handleEdit = (p: ProviderConfig) => { setEditing(p); setEditDialogOpen(true); };
+  const handleDelete = (id: string) => {
+    setProviders((p) => {
+      const v = p.filter((x) => x.id !== id);
+      saveProviders(v);
+      window.dispatchEvent(new Event("providers-changed"));
+      return v;
+    });
+  };
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
@@ -311,9 +315,9 @@ export function ProviderSection() {
           <Cpu size={20} className="text-gray-400" />
           模型配置
         </h2>
-        <button type="button" onClick={() => { setEditing(null); setDialogOpen(true); }}
+        <button type="button" onClick={() => setAddModalOpen(true)}
           className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 dark:bg-brand-500 dark:hover:bg-brand-600">
-          <Plus size={14} />添加服务商
+          <Plus size={14} />添加模型
         </button>
       </div>
       <div className="p-6">
@@ -321,6 +325,12 @@ export function ProviderSection() {
           <div className="flex flex-col items-center justify-center py-12">
             <Server size={40} className="text-gray-300 dark:text-gray-600" />
             <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">暂无服务商配置</p>
+            <button
+              onClick={() => setAddModalOpen(true)}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+            >
+              <Plus size={14} />添加模型
+            </button>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -330,7 +340,21 @@ export function ProviderSection() {
           </div>
         )}
       </div>
-      <AddProviderDialog open={dialogOpen} onClose={() => { setDialogOpen(false); setEditing(null); }} onSave={handleSave} editProvider={editing} />
+
+      {/* 添加模型弹窗（与 TopBar 一致） */}
+      <AddModelModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onAdded={() => setProviders(getProviders())}
+      />
+
+      {/* 编辑弹窗（保留原有编辑功能） */}
+      <EditProviderDialog
+        open={editDialogOpen}
+        onClose={() => { setEditDialogOpen(false); setEditing(null); }}
+        onSave={handleEditSave}
+        editProvider={editing}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { cn } from "@ai-notes/ui-kit";
+import { chain } from "@/lib/editor-utils";
 
 interface ImageDialogProps {
   editor: Editor;
@@ -108,7 +109,7 @@ export function ImageDialog({ editor, open, onClose }: ImageDialogProps) {
           throw new Error(err.error || "上传失败");
         }
         const data = await resp.json();
-        editor.chain().focus().setImage({ src: data.url }).run();
+        chain(editor).setImage({ src: data.url }).run();
         handleClose();
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "上传失败";
@@ -121,7 +122,7 @@ export function ImageDialog({ editor, open, onClose }: ImageDialogProps) {
       let url = imgUrl.trim();
       if (!url) return;
       if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-      editor.chain().focus().setImage({ src: url }).run();
+      chain(editor).setImage({ src: url }).run();
       handleClose();
     }
   };

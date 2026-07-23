@@ -8,7 +8,7 @@ import {
   htmlToMarkdown,
   htmlToPlainText,
   notesToJson,
-  htmlToDocx,
+  embedHtmlImages,
   getExportFilename,
   downloadFile,
   type ExportFormat,
@@ -94,13 +94,20 @@ export function ExportMenu() {
           break;
         }
         case "json": {
-          const json = notesToJson(payloads);
+          // 嵌入图片后再导出 JSON
+          const embeddedPayloads = await Promise.all(
+            payloads.map(async (p) => ({
+              ...p,
+              html: await embedHtmlImages(p.html),
+            }))
+          );
+          const json = notesToJson(embeddedPayloads);
           blob = new Blob([json], { type: "application/json;charset=utf-8" });
           filename = getExportFilename(new Date().toISOString().slice(0, 10), "json");
           break;
         }
         case "docx": {
-          // docx: 全部导出为一个文档
+          // docx: 全部导出为一个文档 - 通过 API 路由处理
           const combinedHtml = payloads
             .map((p) => {
               const titleHtml = `<h1>${p.title}</h1>`;
@@ -111,7 +118,14 @@ export function ExportMenu() {
               return titleHtml + tagsHtml + p.html + "<hr/>";
             })
             .join("\n");
-          blob = await htmlToDocx(combinedHtml, "灵犀笔记导出");
+          
+          const resp = await fetch("/api/export/docx", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ html: combinedHtml, title: "灵犀笔记导出" }),
+          });
+          if (!resp.ok) throw new Error("导出失败");
+          blob = await resp.blob();
           filename = getExportFilename(new Date().toISOString().slice(0, 10), "docx");
           break;
         }

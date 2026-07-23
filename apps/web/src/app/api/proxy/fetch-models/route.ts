@@ -1,34 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { assertUrlNotSensitive } from "@/lib/ssrf";
 
-/**
- * 使用 node:https 发起请求（支持关闭 SSL 验证）
- */
-async function fetchWithOptions(
-  url: string,
-  options: RequestInit & { rejectUnauthorized?: boolean } = {}
-): Promise<Response> {
-  const { rejectUnauthorized, ...fetchOpts } = options;
+const FETCH_TIMEOUT_MS = 20000;
 
-  // 默认全局 fetch，遇到 SSL 错误时改用 https.request + 选项绕过
-  try {
-    const resp = await fetch(url, fetchOpts);
-    return resp;
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    // 如果是 SSL 相关的错误，尝试用 https.Agent 绕过
-    if (
-      rejectUnauthorized !== false &&
-      (msg.includes("certificate") ||
-        msg.includes("SSL") ||
-        msg.includes("self-signed") ||
-        msg.includes("UNABLE_TO_VERIFY"))
-    ) {
-      const https = await import("https");
-      const customAgent = new https.Agent({ rejectUnauthorized: false });
-      return fetch(url, { ...fetchOpts, agent: customAgent } as any);
-    }
-    throw err;
-  }
+async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  return fetch(url, { ...options, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
 }
 
 export async function POST(request: NextRequest) {
@@ -46,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     if (protocol === "Anthropic") {
       const url = "https://api.anthropic.com/v1/models";
-      const resp = await fetchWithOptions(url, {
+      const resp = await fetchWithTimeout(url, {
         headers: {
           "x-api-key": apiKey,
           "anthropic-version": "2023-06-01",
@@ -60,9 +36,18 @@ export async function POST(request: NextRequest) {
       const data = await resp.json();
       models = (data.data || []).map((m: any) => m.id || m.name);
     } else {
-      // OpenAI 兼容协议
+      // SSRF 防护：仅拦截本机/云元数据，允许局域网模型服务（如 192.168.x.x 的 ollama）。
+      // 不再对 SSL 错误自动降级 rejectUnauthorized，避免中间人劫持。
+      try {
+        await assertUrlNotSensitive(baseUrl);
+      } catch {
+        return NextResponse.json(
+          { error: "非法的服务地址（禁止访问本机/云元数据）" },
+          { status: 400 }
+        );
+      }
       const url = baseUrl.replace(/\/+$/, "") + "/models";
-      const resp = await fetchWithOptions(url, {
+      const resp = await fetchWithTimeout(url, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
@@ -78,7 +63,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ models: models.sort() });
   } catch (err: any) {
-    // 在服务端打印详细错误
     console.error("[fetch-models]", err?.message || err, err?.stack || "");
     return NextResponse.json(
       { error: err?.message || "获取模型失败" },

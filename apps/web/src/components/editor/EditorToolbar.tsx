@@ -6,6 +6,7 @@ import { cn } from "@ai-notes/ui-kit";
 import { LinkDialog } from "./LinkDialog";
 import { ImageDialog } from "./ImageDialog";
 import { AIEditorTool } from "./AIEditorTool";
+import { chain } from "@/lib/editor-utils";
 
 interface EditorToolbarProps {
   editor: Editor | null;
@@ -48,7 +49,11 @@ function ToolbarButton({
           ? `${action.label} (${action.shortcut})`
           : action.label
       }
-      aria-label={action.label}
+      aria-label={
+        action.shortcut
+          ? `${action.label} (${action.shortcut})`
+          : action.label
+      }
       aria-pressed={active}
     >
       {action.label}
@@ -67,17 +72,13 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   const handleLinkToggle = useCallback(() => {
     if (!editor) return;
     if (editor.isActive("link")) {
-      // If already a link, open dialog to show/edit/remove
       setLinkDialogOpen(true);
       return;
     }
-    // Check if there's selected text
     const { empty } = editor.state.selection;
     if (empty) {
-      // No selection, just open dialog
       setLinkDialogOpen(true);
     } else {
-      // Has selection, open dialog with selected text
       setLinkDialogOpen(true);
     }
   }, [editor]);
@@ -89,27 +90,27 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
 
   if (!editor) return null;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const c = () => chain(editor);
+
   const groups: ToolbarAction[][] = [
     // Heading group
     [
       {
         label: "H1",
-        action: () =>
-          editor.chain().focus().toggleHeading({ level: 1 }).run(),
+        action: () => c().toggleHeading({ level: 1 }).run(),
         isActive: () => editor.isActive("heading", { level: 1 }),
         shortcut: "Ctrl+Alt+1",
       },
       {
         label: "H2",
-        action: () =>
-          editor.chain().focus().toggleHeading({ level: 2 }).run(),
+        action: () => c().toggleHeading({ level: 2 }).run(),
         isActive: () => editor.isActive("heading", { level: 2 }),
         shortcut: "Ctrl+Alt+2",
       },
       {
         label: "H3",
-        action: () =>
-          editor.chain().focus().toggleHeading({ level: 3 }).run(),
+        action: () => c().toggleHeading({ level: 3 }).run(),
         isActive: () => editor.isActive("heading", { level: 3 }),
         shortcut: "Ctrl+Alt+3",
       },
@@ -118,25 +119,25 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     [
       {
         label: "B",
-        action: () => editor.chain().focus().toggleBold().run(),
+        action: () => c().toggleBold().run(),
         isActive: () => editor.isActive("bold"),
         shortcut: "Ctrl+B",
       },
       {
         label: "I",
-        action: () => editor.chain().focus().toggleItalic().run(),
+        action: () => c().toggleItalic().run(),
         isActive: () => editor.isActive("italic"),
         shortcut: "Ctrl+I",
       },
       {
         label: "S",
-        action: () => editor.chain().focus().toggleStrike().run(),
+        action: () => c().toggleStrike().run(),
         isActive: () => editor.isActive("strike"),
         shortcut: "Ctrl+Shift+S",
       },
       {
         label: "Code",
-        action: () => editor.chain().focus().toggleCode().run(),
+        action: () => c().toggleCode().run(),
         isActive: () => editor.isActive("code"),
         shortcut: "Ctrl+E",
       },
@@ -158,23 +159,23 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     [
       {
         label: "列表",
-        action: () => editor.chain().focus().toggleBulletList().run(),
+        action: () => c().toggleBulletList().run(),
         isActive: () => editor.isActive("bulletList"),
       },
       {
         label: "编号",
-        action: () => editor.chain().focus().toggleOrderedList().run(),
+        action: () => c().toggleOrderedList().run(),
         isActive: () => editor.isActive("orderedList"),
       },
       {
         label: "引用",
-        action: () => editor.chain().focus().toggleBlockquote().run(),
+        action: () => c().toggleBlockquote().run(),
         isActive: () => editor.isActive("blockquote"),
         shortcut: "Ctrl+Shift+B",
       },
       {
         label: "代码块",
-        action: () => editor.chain().focus().toggleCodeBlock().run(),
+        action: () => c().toggleCodeBlock().run(),
         isActive: () => editor.isActive("codeBlock"),
       },
     ],
@@ -182,13 +183,13 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     [
       {
         label: "↩",
-        action: () => editor.chain().focus().undo().run(),
+        action: () => c().undo().run(),
         isActive: () => false,
         shortcut: "Ctrl+Z",
       },
       {
         label: "↪",
-        action: () => editor.chain().focus().redo().run(),
+        action: () => c().redo().run(),
         isActive: () => false,
         shortcut: "Ctrl+Shift+Z",
       },

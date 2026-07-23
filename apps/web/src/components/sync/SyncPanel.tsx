@@ -77,7 +77,7 @@ export function SyncPanel() {
         {syncing ? "同步中..." : result ? `已同步 ${result.ok}，失败 ${result.fail}` : "同步到服务器"}
       </button>
       <button
-        onClick={logout}
+        onClick={() => logout()}
         className="mt-1 w-full rounded px-2 py-1 text-left text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
       >
         退出登录

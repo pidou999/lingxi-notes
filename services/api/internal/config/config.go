@@ -12,20 +12,20 @@ type Config struct {
 	APIPort string `env:"API_PORT" envDefault:"8080"`
 	Env     string `env:"ENV" envDefault:"development"`
 
-	// Database
-	DatabaseURL string `env:"DATABASE_URL" envDefault:"postgres://ainotes:ainotes@localhost:5432/ainotes?sslmode=disable"`
+	// Database — 必须显式配置，不再内置硬编码凭据
+	DatabaseURL string `env:"DATABASE_URL"`
 
 	// Redis
 	RedisURL string `env:"REDIS_URL" envDefault:"redis://localhost:6379/0"`
 
 	// MinIO (Object Storage)
 	MinIOEndpoint  string `env:"MINIO_ENDPOINT" envDefault:"localhost:9000"`
-	MinIOAccessKey string `env:"MINIO_ACCESS_KEY" envDefault:"ainotes"`
-	MinIOSecretKey string `env:"MINIO_SECRET_KEY" envDefault:"ainotes_secret"`
+	MinIOAccessKey string `env:"MINIO_ACCESS_KEY"`
+	MinIOSecretKey string `env:"MINIO_SECRET_KEY"`
 	MinIOBucket    string `env:"MINIO_BUCKET" envDefault:"ainotes"`
 
-	// CORS
-	CORSOrigins string `env:"CORS_ORIGINS" envDefault:"http://localhost:3000"`
+	// CORS — 必须显式配置可信源，禁止通配符配合凭据
+	CORSOrigins string `env:"CORS_ORIGINS"`
 
 	// Behaviour
 	RunMigrations bool `env:"RUN_MIGRATIONS" envDefault:"true"`

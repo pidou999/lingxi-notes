@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -12,7 +13,7 @@ func listTagsHandler(db *DB) http.HandlerFunc {
 		uid := userID(r)
 
 		// 查询当前用户所有未删除笔记的 tags 字段
-		rows, err := db.Query("SELECT tags FROM notes WHERE user_id = ? AND deleted_at IS NULL", uid)
+		rows, err := db.QueryContext(r.Context(), "SELECT tags FROM notes WHERE user_id = ? AND deleted_at IS NULL", uid)
 		if err != nil {
 			http.Error(w, `{"error":"查询失败"}`, 500)
 			return
@@ -24,6 +25,7 @@ func listTagsHandler(db *DB) http.HandlerFunc {
 		for rows.Next() {
 			var raw string
 			if err := rows.Scan(&raw); err != nil {
+				log.Printf("listTags scan error: %v", err)
 				continue
 			}
 			var tags []string
@@ -54,9 +56,13 @@ func listNotesByTagHandler(db *DB) http.HandlerFunc {
 		tag := chi.URLParam(r, "tag")
 		uid := userID(r)
 
-		rows, err := db.Query(
-			"SELECT id, title, html, json, tags, created_at, updated_at FROM notes WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
-			uid)
+		rows, err := db.QueryContext(r.Context(),
+			`SELECT n.id, n.title, n.html, n.json, n.tags, n.created_at, n.updated_at 
+			 FROM notes n 
+			 JOIN json_each(n.tags) j ON j.value = ? 
+			 WHERE n.user_id = ? AND n.deleted_at IS NULL 
+			 ORDER BY n.updated_at DESC`,
+			tag, uid)
 		if err != nil {
 			http.Error(w, `{"error":"查询失败"}`, 500)
 			return
@@ -64,21 +70,16 @@ func listNotesByTagHandler(db *DB) http.HandlerFunc {
 		defer rows.Close()
 
 		notes := []Note{}
+		seen := make(map[string]bool)
 		for rows.Next() {
 			var n Note
 			if err := rows.Scan(&n.ID, &n.Title, &n.HTML, &n.JSON, &n.Tags, &n.CreatedAt, &n.UpdatedAt); err != nil {
+				log.Printf("listNotesByTag scan error: %v", err)
 				continue
 			}
-			// 过滤包含指定标签的笔记
-			var tags []string
-			if err := json.Unmarshal([]byte(n.Tags), &tags); err != nil {
-				continue
-			}
-			for _, t := range tags {
-				if t == tag {
-					notes = append(notes, n)
-					break
-				}
+			if !seen[n.ID] {
+				seen[n.ID] = true
+				notes = append(notes, n)
 			}
 		}
 

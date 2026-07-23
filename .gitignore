@@ -66,5 +66,3 @@ scripts/
 apps/web/out/
 apps/web/.next/
 *.tsbuildinfo
-# Ignore literal %BACKUP_DIR% directory
-%%BACKUP_DIR%%

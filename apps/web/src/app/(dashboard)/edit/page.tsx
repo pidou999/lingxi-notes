@@ -8,7 +8,8 @@ import { TipTapEditor, type TipTapEditorHandle } from "@/components/editor/TipTa
 import { TagInput } from "@/components/tags/TagInput";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { ExportSingleNote } from "@/components/export/ExportSingleNote";
-import { getNote, updateNote, deleteNote } from "@/lib/storage";
+import { BacklinksPanel } from "@/components/notes/BacklinksPanel";
+import { getNote, updateNote, deleteNote, verifyNotePassword } from "@/lib/storage";
 import type { Note } from "@/lib/types";
 
 export default function NoteEditorPage() {
@@ -22,6 +23,7 @@ export default function NoteEditorPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [locked, setLocked] = useState(true);
   const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const editorRef = useRef<TipTapEditorHandle>(null);
 
   const loadNote = useCallback(() => {
@@ -70,6 +72,10 @@ export default function NoteEditorPage() {
   const handleDelete = () => {
     if (!confirm("确定删除这篇笔记吗？")) return;
     deleteNote(id);
+    // 通知列表页同步刷新（notes 页监听 ai-notes:note-changed）
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("ai-notes:note-changed", { detail: { id, action: "delete" } }));
+    }
     router.replace("/notes");
   };
 
@@ -122,20 +128,23 @@ export default function NoteEditorPage() {
           className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              if (passwordInput === note.password) {
+              if (verifyNotePassword(passwordInput, note.password)) {
                 setLocked(false);
+                setPasswordError("");
               } else {
-                alert("密码错误");
+                setPasswordError("密码错误");
                 setPasswordInput("");
               }
             }
           }}
         />
+        {passwordError && <p className="text-sm text-red-500">{passwordError}</p>}
         <Button onClick={() => {
-          if (passwordInput === note.password) {
+          if (verifyNotePassword(passwordInput, note.password)) {
             setLocked(false);
+            setPasswordError("");
           } else {
-            alert("密码错误");
+            setPasswordError("密码错误");
             setPasswordInput("");
           }
         }} className="w-full">解锁</Button>
@@ -214,6 +223,11 @@ export default function NoteEditorPage() {
         className="flex-1 flex flex-col"
         editorClassName="flex-1"
       />
+
+      {/* 反向链接面板 */}
+      <div className="mt-4">
+        <BacklinksPanel noteId={id} defaultOpen={false} />
+      </div>
 
       <ChatPanel
         open={chatOpen}

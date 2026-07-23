@@ -7,7 +7,8 @@ import CodeBlock from "@tiptap/extension-code-block";
  * Exit hint shown via CSS :hover on the wrapper.
  */
 export const EnhancedCodeBlock = CodeBlock.extend({
-  addOptions() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addOptions(this: any) {
     return {
       ...this.parent?.(),
       language: null,

@@ -40,5 +40,6 @@ export { Sparkles } from "./Sparkles";
 export { FileText } from "./FileText";
 export { Edit } from "./Edit";
 export { Square } from "./Square";
+export { Graph } from "./Graph";
 
 export type { IconProps } from "./types";

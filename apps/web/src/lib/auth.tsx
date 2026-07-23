@@ -15,15 +15,15 @@ import {
   saveUser as storageSaveUser,
   clearUser as storageClearUser,
 } from "./storage";
-import { apiLogin, apiRegister, isLoggedIn, setToken, clearToken } from "./api";
+import { apiLogin, apiRegister, isLoggedIn, loadToken, setToken, clearToken } from "./api";
 
 interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<User>;
+  login: (username: string, password: string) => Promise<User>;
   register: (username: string, email: string, password: string) => Promise<User>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -33,28 +33,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 优先从 localStorage 恢复用户信息（兼容旧离线模式）
-    const stored = storageGetUser();
-    if (stored) {
-      setUser(stored);
-    }
-    setIsLoading(false);
+    // 从加密存储加载 token（异步）
+    loadToken().then(() => {
+      // 优先从 localStorage 恢复用户信息（兼容旧离线模式）
+      const stored = storageGetUser();
+      if (stored) {
+        setUser(stored);
+      }
+      setIsLoading(false);
+    });
   }, []);
 
-  const login = useCallback(async (email: string, password: string): Promise<User> => {
-    // 尝试 API 登录
+  const login = useCallback(async (username: string, password: string): Promise<User> => {
     try {
-      const result = await apiLogin(email, password);
-      const u: User = { id: result.user.id, username: result.user.username, email };
+      const result = await apiLogin(username, password);
+      const u: User = { id: result.user.id, username: result.user.username, email: (result.user as { email?: string }).email || "" };
       setToken(result.token);
       storageSaveUser(u);
       setUser(u);
       return u;
-    } catch {
-      // API 不可用时，回退到本地
+    } catch (err) {
+      // 后端不可用：回退到本地账户，但明确告知用户后端状态
       const { loginUser } = await import("./storage");
-      const u = loginUser(email, password);
+      const u = await loginUser(username, password);
       if (!u) throw new Error("登录失败（后端离线，本地也无此账户）");
+      if (!(err instanceof DOMException && err.name === "AbortError")) {
+        console.warn("后端不可用，已使用本地账户登录：", (err as Error)?.message || err);
+        window.dispatchEvent(new CustomEvent("ai-notes:backend-offline", { detail: { action: "login" } }));
+      }
       setUser(u);
       return u;
     }
@@ -63,23 +69,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(async (username: string, email: string, password: string): Promise<User> => {
     try {
       const result = await apiRegister(username, password);
-      const u: User = { id: result.user.id, username: result.user.username, email };
+      const u: User = { id: result.user.id, username: result.user.username, email: (result.user as { email?: string }).email || email };
       setToken(result.token);
       storageSaveUser(u);
       setUser(u);
       return u;
-    } catch {
-      // API 不可用时，回退到本地注册
+    } catch (err) {
       const { registerUser } = await import("./storage");
-      const u = registerUser(username, email, password);
-      if (!u) throw new Error("注册失败");
+      const u = await registerUser(username, email, password);
+      if (!u) throw new Error("注册失败（后端离线，本地也未创建账户）");
+      if (!(err instanceof DOMException && err.name === "AbortError")) {
+        console.warn("后端不可用，已在本地创建账户：", (err as Error)?.message || err);
+        window.dispatchEvent(new CustomEvent("ai-notes:backend-offline", { detail: { action: "register" } }));
+      }
       setUser(u);
       return u;
     }
   }, []);
 
-  const logout = useCallback(() => {
-    clearToken();
+  const logout: () => Promise<void> = useCallback(async () => {
+    await clearToken();
     storageClearUser();
     localStorage.removeItem("ai-notes:skip-auth");
     setUser(null);

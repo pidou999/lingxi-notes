@@ -116,21 +116,16 @@ func main() {
 }
 
 // parseOrigins splits a comma-separated origin list, trimming whitespace.
-// It returns a slice with a single wildcard entry if the input is empty.
+// CORS 配置必须显式指定可信源；空输入（隐含通配符）配合 AllowCredentials
+// 会被浏览器拒绝，且存在 CSRF 风险，因此这里直接返回空（middleware 将拒绝）。
 func parseOrigins(s string) []string {
-	if strings.TrimSpace(s) == "" {
-		return []string{"*"}
-	}
 	parts := strings.Split(s, ",")
 	out := make([]string, 0, len(parts))
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
-		if p != "" {
+		if p != "" && p != "*" {
 			out = append(out, p)
 		}
-	}
-	if len(out) == 0 {
-		return []string{"*"}
 	}
 	return out
 }

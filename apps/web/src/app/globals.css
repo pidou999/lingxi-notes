@@ -108,6 +108,57 @@ body {
 
 /* ─── TipTap / ProseMirror editor styles ────────────── */
 
+.ProseMirror {
+  overflow-x: hidden;
+  max-width: 100%;
+  /* 新 containing block 限制内部 position:fixed 元素（如 CSDN 侧边栏） */
+  transform: translateZ(0);
+  position: relative;
+}
+
+.ProseMirror > * {
+  max-width: 100%;
+}
+
+.ProseMirror [style*="position: fixed"],
+.ProseMirror [style*="position:fixed"],
+.ProseMirror [style*="position: absolute"],
+.ProseMirror [style*="position:absolute"] {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: auto !important;
+}
+
+.ProseMirror table {
+  table-layout: fixed;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.ProseMirror td,
+.ProseMirror th {
+  word-break: break-word;
+}
+
+.ProseMirror pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.ProseMirror pre code {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+}
+
 /* Inline code: visible styling */
 .ProseMirror code {
   background-color: #f3f4f6;
@@ -123,7 +174,10 @@ body {
   color: #f87171;
 }
 
-/* Blockquote styling */
+/* 暗色模式下代码块 pre>code 需明确指定颜色，避免与上方 .dark .ProseMirror code 优先级平手而变红 */
+.dark .ProseMirror pre code {
+  color: #e5e7eb;
+}
 .ProseMirror blockquote {
   border-left: 3px solid #d1d5db;
   padding-left: 1rem;
@@ -174,4 +228,278 @@ body {
   color: #9ca3af;
   pointer-events: none;
   height: 0;
+}
+
+/* ─── Table styles (prose / search results / clipped content) ────────── */
+
+.prose table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 1em 0 !important;
+  font-size: 0.875em !important;
+  display: table !important;
+}
+
+.prose thead {
+  border-bottom: 2px solid var(--color-border) !important;
+}
+
+.prose th {
+  font-weight: 600 !important;
+  text-align: left !important;
+  padding: 0.5rem 0.75rem !important;
+  border-bottom: 2px solid var(--color-border) !important;
+  background-color: var(--color-surface-secondary) !important;
+  white-space: nowrap !important;
+}
+
+.prose td {
+  padding: 0.5rem 0.75rem !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  vertical-align: top !important;
+}
+
+.prose tbody tr:hover {
+  background-color: var(--color-surface-secondary) !important;
+}
+
+.prose table + table {
+  margin-top: 1em !important;
+}
+
+/* ─── ClipDialog 内容预览（排版 HTML，含图片） ────────── */
+
+.clip-preview {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--color-text-primary);
+  word-break: break-word;
+  overflow-wrap: break-word;
+  /* 防止 CSDN 等站点内容溢出弹窗 */
+  overflow-x: hidden;
+  max-width: 100%;
+  /* 新 containing block 限制内部 position:fixed 元素在容器内 */
+  transform: translateZ(0);
+  position: relative;
+}
+
+.clip-preview > * {
+  max-width: 100%;
+}
+
+.clip-preview [style*="position: fixed"],
+.clip-preview [style*="position:fixed"],
+.clip-preview [style*="position: absolute"],
+.clip-preview [style*="position:absolute"] {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: auto !important;
+}
+
+.clip-preview > :first-child {
+  margin-top: 0;
+}
+
+.clip-preview > :last-child {
+  margin-bottom: 0;
+}
+
+.clip-preview img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+.clip-preview h1,
+.clip-preview h2,
+.clip-preview h3,
+.clip-preview h4 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1rem 0 0.5rem;
+  color: var(--color-text-primary);
+}
+
+.clip-preview h1 {
+  font-size: 1.5rem;
+}
+
+.clip-preview h2 {
+  font-size: 1.25rem;
+}
+
+.clip-preview h3 {
+  font-size: 1.1rem;
+}
+
+.clip-preview h4 {
+  font-size: 1rem;
+}
+
+.clip-preview p {
+  margin: 0.5rem 0;
+}
+
+.clip-preview ul,
+.clip-preview ol {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.clip-preview li {
+  margin: 0.25rem 0;
+}
+
+.clip-preview a {
+  color: #4f46e5;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.clip-preview blockquote {
+  border-left: 3px solid var(--color-border);
+  padding-left: 1rem;
+  margin: 0.75rem 0;
+  color: var(--color-text-secondary);
+}
+
+.clip-preview pre {
+  background-color: var(--color-surface-secondary);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-size: 0.8rem;
+  margin: 0.5rem 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.clip-preview pre code {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* CSDN / highlight.js 代码块：强制文本可见、不换行溢出 */
+.clip-preview pre[class*="hljs"],
+.clip-preview pre[class*="brush"],
+.clip-preview pre[class*="language-"] {
+  color: var(--color-text-primary);
+  background-color: var(--color-surface-secondary);
+}
+
+.clip-preview pre * {
+  max-width: 100%;
+}
+
+.clip-preview code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
+.clip-preview :not(pre) > code {
+  background-color: var(--color-surface-tertiary);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.clip-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin: 0.75rem 0;
+  font-size: 0.8rem;
+}
+
+.clip-preview th,
+.clip-preview td {
+  border: 1px solid var(--color-border);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.clip-preview th {
+  background-color: var(--color-surface-secondary);
+  font-weight: 600;
+}
+
+.dark .clip-preview a {
+  color: #818cf8;
+}
+
+.dark .clip-preview pre {
+  background-color: #1f2937;
+}
+
+.dark .clip-preview :not(pre) > code {
+  background-color: #374151;
+}
+
+/* 暗色模式下 clip-preview 代码块也统一使用浅灰色，避免红字 */
+.dark .clip-preview pre code {
+  color: #e5e7eb;
+}
+
+/* ─── WikiLink 样式 ────────────────────────────────── */
+.wikilink {
+  color: #4f46e5;
+  background-color: #eef2ff;
+  border-radius: 4px;
+  padding: 1px 4px;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.wikilink:hover {
+  background-color: #e0e7ff;
+  color: #4338ca;
+}
+
+.wikilink-missing {
+  color: #9ca3af;
+  background-color: #f3f4f6;
+  border-bottom: 1px dashed #9ca3af;
+  border-radius: 4px;
+  padding: 1px 4px;
+  text-decoration: none;
+  cursor: not-allowed;
+}
+
+.wikilink-missing:hover {
+  background-color: #e5e7eb;
+  color: #6b7280;
+}
+
+.dark .wikilink {
+  color: #818cf8;
+  background-color: rgba(99, 102, 241, 0.15);
+}
+
+.dark .wikilink:hover {
+  background-color: rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+}
+
+.dark .wikilink-missing {
+  color: #6b7280;
+  background-color: rgba(107, 114, 128, 0.1);
+  border-bottom-color: #6b7280;
+}
+
+.dark .wikilink-missing:hover {
+  background-color: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
 }
